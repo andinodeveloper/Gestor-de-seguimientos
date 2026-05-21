@@ -1,6 +1,6 @@
 export type Role = "admin" | "editor" | "viewer";
 
-export type FollowUpStatus = "active" | "archived";
+export type RecordStatus = "active" | "archived";
 
 export type ActivityFrequency = "Diaria" | "Semanal" | "Quincenal" | "Mensual";
 
@@ -26,46 +26,32 @@ export type Profile = {
   updated_at: string;
 };
 
-export type FollowUp = {
+export type BaseRecord = {
   id: string;
   title: string;
   organizational_unit: string;
-  responsible_name: string;
-  report_date: string;
   owner_id: string;
-  status: FollowUpStatus;
+  status: RecordStatus;
   created_at: string;
   updated_at: string;
   updated_by: string | null;
 };
 
-export type FollowUpDocument = {
-  id: string;
-  follow_up_id: string;
-  name: string;
+export type DocumentTracking = BaseRecord & {
   status_code: string;
   status_label: string;
   progress_percent: number;
   notes: string;
-  sort_order: number;
 };
 
-export type FollowUpActivity = {
-  id: string;
-  follow_up_id: string;
-  name: string;
+export type ActivityTracking = BaseRecord & {
   frequency: ActivityFrequency;
   priority: ActivityPriority;
-  status: ActivityStatus;
+  activity_status: ActivityStatus;
   notes: string;
-  sort_order: number;
 };
 
-export type FollowUpProject = {
-  id: string;
-  follow_up_id: string;
-  name: string;
-  sort_order: number;
+export type ProjectTracking = BaseRecord & {
   tasks: ProjectTask[];
 };
 
@@ -86,18 +72,6 @@ export type AuditEvent = {
   payload_json: Record<string, unknown> | null;
   created_at: string;
 };
-
-export type FollowUpBundle = {
-  followUp: FollowUp;
-  documents: FollowUpDocument[];
-  activities: FollowUpActivity[];
-  projects: FollowUpProject[];
-};
-
-export type FollowUpListItem = Pick<
-  FollowUp,
-  "id" | "title" | "organizational_unit" | "responsible_name" | "report_date" | "status" | "updated_at"
->;
 
 export type SetupState = {
   isConfigured: boolean;

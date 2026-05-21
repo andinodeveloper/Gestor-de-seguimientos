@@ -10,12 +10,40 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
-create table if not exists public.follow_ups (
+create table if not exists public.documents (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   organizational_unit text not null default '',
-  responsible_name text not null default '',
-  report_date date not null,
+  owner_id uuid not null references public.profiles (id),
+  status text not null default 'active' check (status in ('active', 'archived')),
+  status_code text not null,
+  status_label text not null,
+  progress_percent integer not null default 0,
+  notes text not null default '',
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  updated_by uuid references public.profiles (id)
+);
+
+create table if not exists public.activities (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  organizational_unit text not null default '',
+  owner_id uuid not null references public.profiles (id),
+  status text not null default 'active' check (status in ('active', 'archived')),
+  frequency text not null check (frequency in ('Diaria', 'Semanal', 'Quincenal', 'Mensual')),
+  priority text not null check (priority in ('Baja', 'Media', 'Alta', 'Critica')),
+  activity_status text not null check (activity_status in ('Pendiente', 'En Proceso', 'Completado')),
+  notes text not null default '',
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  updated_by uuid references public.profiles (id)
+);
+
+create table if not exists public.projects (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  organizational_unit text not null default '',
   owner_id uuid not null references public.profiles (id),
   status text not null default 'active' check (status in ('active', 'archived')),
   created_at timestamptz not null default timezone('utc', now()),
@@ -23,38 +51,9 @@ create table if not exists public.follow_ups (
   updated_by uuid references public.profiles (id)
 );
 
-create table if not exists public.follow_up_documents (
-  id uuid primary key default gen_random_uuid(),
-  follow_up_id uuid not null references public.follow_ups (id) on delete cascade,
-  name text not null,
-  status_code text not null,
-  status_label text not null,
-  progress_percent integer not null default 0,
-  notes text not null default '',
-  sort_order integer not null default 0
-);
-
-create table if not exists public.follow_up_activities (
-  id uuid primary key default gen_random_uuid(),
-  follow_up_id uuid not null references public.follow_ups (id) on delete cascade,
-  name text not null,
-  frequency text not null check (frequency in ('Diaria', 'Semanal', 'Quincenal', 'Mensual')),
-  priority text not null check (priority in ('Baja', 'Media', 'Alta', 'Critica')),
-  status text not null check (status in ('Pendiente', 'En Proceso', 'Completado')),
-  notes text not null default '',
-  sort_order integer not null default 0
-);
-
-create table if not exists public.follow_up_projects (
-  id uuid primary key default gen_random_uuid(),
-  follow_up_id uuid not null references public.follow_ups (id) on delete cascade,
-  name text not null,
-  sort_order integer not null default 0
-);
-
 create table if not exists public.project_tasks (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.follow_up_projects (id) on delete cascade,
+  project_id uuid not null references public.projects (id) on delete cascade,
   column_key text not null check (column_key in ('todo', 'doing', 'done')),
   content text not null,
   sort_order integer not null default 0
@@ -86,9 +85,21 @@ before update on public.profiles
 for each row
 execute procedure public.touch_updated_at();
 
-drop trigger if exists set_follow_ups_updated_at on public.follow_ups;
-create trigger set_follow_ups_updated_at
-before update on public.follow_ups
+drop trigger if exists set_documents_updated_at on public.documents;
+create trigger set_documents_updated_at
+before update on public.documents
+for each row
+execute procedure public.touch_updated_at();
+
+drop trigger if exists set_activities_updated_at on public.activities;
+create trigger set_activities_updated_at
+before update on public.activities
+for each row
+execute procedure public.touch_updated_at();
+
+drop trigger if exists set_projects_updated_at on public.projects;
+create trigger set_projects_updated_at
+before update on public.projects
 for each row
 execute procedure public.touch_updated_at();
 
@@ -135,7 +146,7 @@ as $$
   select coalesce((select is_active from public.profiles where id = auth.uid()), false);
 $$;
 
-create or replace function public.can_edit_follow_ups()
+create or replace function public.can_edit_records()
 returns boolean
 language sql
 stable
@@ -146,133 +157,65 @@ as $$
 $$;
 
 alter table public.profiles enable row level security;
-alter table public.follow_ups enable row level security;
-alter table public.follow_up_documents enable row level security;
-alter table public.follow_up_activities enable row level security;
-alter table public.follow_up_projects enable row level security;
+alter table public.documents enable row level security;
+alter table public.activities enable row level security;
+alter table public.projects enable row level security;
 alter table public.project_tasks enable row level security;
 alter table public.audit_events enable row level security;
 
+-- Profiles
 drop policy if exists "profiles_select_self_or_admin" on public.profiles;
-create policy "profiles_select_self_or_admin"
-on public.profiles
-for select
-to authenticated
-using (public.app_is_active() and (id = auth.uid() or public.app_role() = 'admin'));
+create policy "profiles_select_self_or_admin" on public.profiles for select to authenticated using (public.app_is_active() and (id = auth.uid() or public.app_role() = 'admin'));
 
 drop policy if exists "profiles_update_admin_only" on public.profiles;
-create policy "profiles_update_admin_only"
-on public.profiles
-for update
-to authenticated
-using (public.app_is_active() and public.app_role() = 'admin')
-with check (public.app_is_active() and public.app_role() = 'admin');
+create policy "profiles_update_admin_only" on public.profiles for update to authenticated using (public.app_is_active() and public.app_role() = 'admin') with check (public.app_is_active() and public.app_role() = 'admin');
 
 drop policy if exists "profiles_insert_admin_only" on public.profiles;
-create policy "profiles_insert_admin_only"
-on public.profiles
-for insert
-to authenticated
-with check (public.app_is_active() and public.app_role() = 'admin');
+create policy "profiles_insert_admin_only" on public.profiles for insert to authenticated with check (public.app_is_active() and public.app_role() = 'admin');
 
-drop policy if exists "follow_ups_read_authenticated" on public.follow_ups;
-create policy "follow_ups_read_authenticated"
-on public.follow_ups
-for select
-to authenticated
-using (public.app_is_active());
+-- Documents
+drop policy if exists "documents_read_authenticated" on public.documents;
+create policy "documents_read_authenticated" on public.documents for select to authenticated using (public.app_is_active());
 
-drop policy if exists "follow_ups_write_editors" on public.follow_ups;
-create policy "follow_ups_write_editors"
-on public.follow_ups
-for all
-to authenticated
-using (public.can_edit_follow_ups())
-with check (public.can_edit_follow_ups());
+drop policy if exists "documents_write_editors" on public.documents;
+create policy "documents_write_editors" on public.documents for all to authenticated using (public.can_edit_records()) with check (public.can_edit_records());
 
-drop policy if exists "follow_up_documents_read_authenticated" on public.follow_up_documents;
-create policy "follow_up_documents_read_authenticated"
-on public.follow_up_documents
-for select
-to authenticated
-using (public.app_is_active());
+-- Activities
+drop policy if exists "activities_read_authenticated" on public.activities;
+create policy "activities_read_authenticated" on public.activities for select to authenticated using (public.app_is_active());
 
-drop policy if exists "follow_up_documents_write_editors" on public.follow_up_documents;
-create policy "follow_up_documents_write_editors"
-on public.follow_up_documents
-for all
-to authenticated
-using (public.can_edit_follow_ups())
-with check (public.can_edit_follow_ups());
+drop policy if exists "activities_write_editors" on public.activities;
+create policy "activities_write_editors" on public.activities for all to authenticated using (public.can_edit_records()) with check (public.can_edit_records());
 
-drop policy if exists "follow_up_activities_read_authenticated" on public.follow_up_activities;
-create policy "follow_up_activities_read_authenticated"
-on public.follow_up_activities
-for select
-to authenticated
-using (public.app_is_active());
+-- Projects
+drop policy if exists "projects_read_authenticated" on public.projects;
+create policy "projects_read_authenticated" on public.projects for select to authenticated using (public.app_is_active());
 
-drop policy if exists "follow_up_activities_write_editors" on public.follow_up_activities;
-create policy "follow_up_activities_write_editors"
-on public.follow_up_activities
-for all
-to authenticated
-using (public.can_edit_follow_ups())
-with check (public.can_edit_follow_ups());
+drop policy if exists "projects_write_editors" on public.projects;
+create policy "projects_write_editors" on public.projects for all to authenticated using (public.can_edit_records()) with check (public.can_edit_records());
 
-drop policy if exists "follow_up_projects_read_authenticated" on public.follow_up_projects;
-create policy "follow_up_projects_read_authenticated"
-on public.follow_up_projects
-for select
-to authenticated
-using (public.app_is_active());
-
-drop policy if exists "follow_up_projects_write_editors" on public.follow_up_projects;
-create policy "follow_up_projects_write_editors"
-on public.follow_up_projects
-for all
-to authenticated
-using (public.can_edit_follow_ups())
-with check (public.can_edit_follow_ups());
-
+-- Project Tasks
 drop policy if exists "project_tasks_read_authenticated" on public.project_tasks;
-create policy "project_tasks_read_authenticated"
-on public.project_tasks
-for select
-to authenticated
-using (public.app_is_active());
+create policy "project_tasks_read_authenticated" on public.project_tasks for select to authenticated using (public.app_is_active());
 
 drop policy if exists "project_tasks_write_editors" on public.project_tasks;
-create policy "project_tasks_write_editors"
-on public.project_tasks
-for all
-to authenticated
-using (public.can_edit_follow_ups())
-with check (public.can_edit_follow_ups());
+create policy "project_tasks_write_editors" on public.project_tasks for all to authenticated using (public.can_edit_records()) with check (public.can_edit_records());
 
+-- Audit Events
 drop policy if exists "audit_events_select_admin" on public.audit_events;
-create policy "audit_events_select_admin"
-on public.audit_events
-for select
-to authenticated
-using (public.app_is_active() and public.app_role() = 'admin');
+create policy "audit_events_select_admin" on public.audit_events for select to authenticated using (public.app_is_active() and public.app_role() = 'admin');
 
 drop policy if exists "audit_events_insert_authenticated" on public.audit_events;
-create policy "audit_events_insert_authenticated"
-on public.audit_events
-for insert
-to authenticated
-with check (public.app_is_active() and actor_id = auth.uid());
+create policy "audit_events_insert_authenticated" on public.audit_events for insert to authenticated with check (public.app_is_active() and actor_id = auth.uid());
 
 grant usage on schema public to authenticated, service_role;
-grant select, insert, update, delete on public.follow_ups to authenticated;
-grant select, insert, update, delete on public.follow_up_documents to authenticated;
-grant select, insert, update, delete on public.follow_up_activities to authenticated;
-grant select, insert, update, delete on public.follow_up_projects to authenticated;
+grant select, insert, update, delete on public.documents to authenticated;
+grant select, insert, update, delete on public.activities to authenticated;
+grant select, insert, update, delete on public.projects to authenticated;
 grant select, insert, update, delete on public.project_tasks to authenticated;
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert on public.audit_events to authenticated;
 grant all on all tables in schema public to service_role;
 grant execute on function public.app_role() to authenticated, service_role;
 grant execute on function public.app_is_active() to authenticated, service_role;
-grant execute on function public.can_edit_follow_ups() to authenticated, service_role;
+grant execute on function public.can_edit_records() to authenticated, service_role;
