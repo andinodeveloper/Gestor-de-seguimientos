@@ -221,7 +221,7 @@ export function FollowUpEditor({
               type="button"
               onClick={handleExportPptx}
               disabled={pptxPending}
-              className="rounded-full bg-white px-5 py-3 text-center text-sm font-semibold uppercase tracking-[0.18em] text-[var(--shell)] transition hover:bg-white/90 disabled:opacity-60"
+              className="rounded-full bg-white px-5 py-3 text-center text-sm font-semibold uppercase tracking-[0.18em] text-[#102117] transition hover:bg-white/90 disabled:opacity-60"
             >
               {pptxPending ? "Generando PPTX..." : "Exportar PPTX"}
             </button>

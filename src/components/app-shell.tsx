@@ -41,7 +41,10 @@ export function AppShell({
 
             <nav className="mt-10 space-y-2">
               {links.map((link) => {
-                const active = currentPath === link.href || currentPath.startsWith(`${link.href}/`);
+                const active =
+                  link.href === "/seguimientos"
+                    ? currentPath === "/seguimientos" || currentPath.startsWith("/seguimientos/detalle")
+                    : currentPath.startsWith(link.href);
                 return (
                   <Link
                     key={link.href}
@@ -49,7 +52,7 @@ export function AppShell({
                     className={cn(
                       "block rounded-2xl px-4 py-3 text-sm font-medium transition",
                       active
-                        ? "bg-white text-[var(--shell)]"
+                        ? "bg-white text-[#102117]"
                         : "text-white/70 hover:bg-white/[0.08] hover:text-white",
                     )}
                   >

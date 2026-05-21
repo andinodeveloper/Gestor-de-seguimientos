@@ -24,7 +24,7 @@ export function SignOutButton() {
     <button
       type="button"
       onClick={handleSignOut}
-      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.12]"
+      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white whitespace-nowrap transition hover:bg-white/[0.12]"
     >
       {isPending ? "Saliendo..." : "Cerrar sesion"}
     </button>
