@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+:root {
+  --surface: #f4f1e8;
+  --surface-2: #ebe7da;
+  --panel: #fcfbf7;
+  --shell: #102117;
+  --accent: #0b6b49;
+  --accent-strong: #084f36;
+  --ink: #162419;
+  --muted: #637064;
+  --line: rgba(22, 36, 25, 0.1);
+  --line-strong: rgba(22, 36, 25, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(152, 255, 196, 0.18), transparent 26%),
+    linear-gradient(180deg, #f7f4ec 0%, #f0ede3 100%);
+  color: var(--ink);
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(11, 107, 73, 0.18);
+}
+
+.field {
+  width: 100%;
+  border-radius: 1.2rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.86);
+  padding: 0.95rem 1rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.field:focus {
+  border-color: rgba(11, 107, 73, 0.45);
+  box-shadow: 0 0 0 4px rgba(11, 107, 73, 0.08);
+  background: white;
+}
+
+.field:disabled {
+  cursor: not-allowed;
+  background: rgba(248, 246, 240, 0.92);
+  color: var(--muted);
+}
+
+.label {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.action-button {
+  border-radius: 999px;
+  background: var(--accent);
+  padding: 0.9rem 1.15rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: white;
+  transition: background-color 120ms ease;
+}
+
+.action-button:hover {
+  background: var(--accent-strong);
+}
