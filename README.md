@@ -106,12 +106,12 @@ npm run dev
 
 - Login por correo y contrasena
 - Roles `admin`, `editor`, `viewer`
-- Listado filtrable de seguimientos
-- Editor persistente de cabecera, documentos, actividades y proyectos
-- Archivado de seguimientos
+- Listado filtrable de registros operativos
+- Editor persistente de documentos, actividades y proyectos independientes
+- Archivado de registros
 - Panel admin de usuarios
 - Exporte `PPTX`
-- Backup `ZIP` con `seguimiento.json`
+- Backup `ZIP` con un JSON por registro
 - Auditoria basica en `audit_events`
 - Build estatico compatible con GitHub Pages
 

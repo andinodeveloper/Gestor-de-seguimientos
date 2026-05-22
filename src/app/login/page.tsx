@@ -40,7 +40,7 @@ function LoginPageContent() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/50">Plataforma interna</p>
             <h1 className="mt-6 max-w-2xl text-6xl font-semibold tracking-[-0.07em]">
-              Seguimiento operativo con datos compartidos y control por rol.
+              Registros operativos con responsables directos y control por rol.
             </h1>
             <p className="mt-6 max-w-xl text-base leading-8 text-white/70">
               Reemplaza el tablero estatico por una aplicacion colaborativa: historial real, usuarios, archivado y exportes consistentes desde Supabase.
@@ -50,7 +50,7 @@ function LoginPageContent() {
           <div className="grid gap-4 md:grid-cols-3">
             {[
               ["Usuarios", "Autenticacion por correo con perfiles activos e inactivos."],
-              ["Persistencia", "Seguimientos, documentos y kanban guardados en base real."],
+              ["Persistencia", "Documentos, actividades y proyectos guardados en base real."],
               ["Exportes", "PPTX y backup ZIP generados desde el estado persistido."],
             ].map(([title, body]) => (
               <div key={title} className="rounded-[1.7rem] border border-white/10 bg-white/[0.06] p-5 backdrop-blur">
@@ -67,7 +67,7 @@ function LoginPageContent() {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Acceso</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-[var(--ink)]">Iniciar sesion</h2>
           <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
-            Usa tus credenciales para entrar al workspace compartido de seguimientos.
+            Usa tus credenciales para entrar al workspace compartido de registros.
           </p>
           {searchParams.get("blocked") === "1" ? (
             <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

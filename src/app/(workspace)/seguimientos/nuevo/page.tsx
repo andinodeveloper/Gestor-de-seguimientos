@@ -61,7 +61,9 @@ export default function NewRecordPage() {
       <div className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Creacion</p>
         <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-[var(--ink)]">Nuevo Registro</h2>
-        <p className="mt-4 text-sm leading-7 text-[var(--muted)]">Selecciona el tipo de registro y proporciona la informacion inicial.</p>
+        <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
+          Selecciona el tipo de registro y proporciona la informacion inicial. El responsable directo sera tu usuario.
+        </p>
         
         {error && <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</div>}
         

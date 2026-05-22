@@ -1,11 +1,12 @@
 "use client";
 
 import { startTransition, useEffect, useRef, useState } from "react";
+
 import { useAuthContext } from "@/components/auth-provider";
 import { PROJECT_COLUMNS } from "@/lib/constants";
-import { canEditRole } from "@/lib/domain";
+import { canEditOwnedRecord } from "@/lib/domain";
 import { updateProject } from "@/lib/follow-ups";
-import type { ProjectTracking, ProjectColumnKey, Role } from "@/lib/types";
+import type { ProjectColumnKey, ProjectTracking, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -18,8 +19,8 @@ export function ProjectEditor({
   role: Role;
 }) {
   const { profile } = useAuthContext();
-  const editable = canEditRole(role);
-  
+  const editable = canEditOwnedRecord(role, profile?.id, project.owner_id);
+
   const [data, setData] = useState(project);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const firstRun = useRef(true);
@@ -65,7 +66,7 @@ export function ProjectEditor({
   }
 
   function getTasksByColumn(key: ProjectColumnKey) {
-    return data.tasks.filter((t) => t.column_key === key).sort((a, b) => a.sort_order - b.sort_order);
+    return data.tasks.filter((task) => task.column_key === key).sort((a, b) => a.sort_order - b.sort_order);
   }
 
   return (
@@ -79,12 +80,12 @@ export function ProjectEditor({
             </div>
             <SavePill state={saveState} />
           </div>
-          
+
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <Field label="Titulo">
               <input
                 value={data.title}
-                onChange={(e) => setData((c) => ({ ...c, title: e.target.value }))}
+                onChange={(e) => setData((current) => ({ ...current, title: e.target.value }))}
                 className="field"
                 disabled={!editable}
               />
@@ -92,7 +93,7 @@ export function ProjectEditor({
             <Field label="Unidad organizativa">
               <input
                 value={data.organizational_unit}
-                onChange={(e) => setData((c) => ({ ...c, organizational_unit: e.target.value }))}
+                onChange={(e) => setData((current) => ({ ...current, organizational_unit: e.target.value }))}
                 className="field"
                 disabled={!editable}
               />
@@ -106,11 +107,12 @@ export function ProjectEditor({
             {data.status === "archived" ? "Archivado" : "Activo"}
           </h3>
           <div className="mt-8 space-y-4 text-sm text-white/70">
+            <p>Responsable: {data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario del sistema"}</p>
             <p>Total de tareas: {data.tasks.length}</p>
-            <p>Última actualización: {new Date(data.updated_at).toLocaleDateString()}</p>
+            <p>Ultima actualizacion: {new Date(data.updated_at).toLocaleDateString()}</p>
           </div>
           <div className="mt-8 grid gap-3">
-            {editable && (
+            {editable ? (
               <button
                 type="button"
                 onClick={handleToggleStatus}
@@ -118,112 +120,141 @@ export function ProjectEditor({
               >
                 {data.status === "archived" ? "Reactivar" : "Archivar"}
               </button>
-            )}
+            ) : null}
           </div>
         </aside>
       </section>
 
       <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface-2)] p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-         <div className="grid gap-6 xl:grid-cols-3">
-            {PROJECT_COLUMNS.map((column) => {
-              const columnTasks = getTasksByColumn(column.key);
-              return (
-                <div
-                  key={column.key}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => {
-                    const dragged = draggedRef.current;
-                    if (!dragged) return;
+        <div className="grid gap-6 xl:grid-cols-3">
+          {PROJECT_COLUMNS.map((column) => {
+            const columnTasks = getTasksByColumn(column.key);
+            return (
+              <div
+                key={column.key}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  const dragged = draggedRef.current;
+                  if (!dragged) return;
 
-                    setData((current) => {
-                      const allTasks = [...current.tasks];
-                      const originTasks = allTasks.filter(t => t.column_key === dragged.column).sort((a, b) => a.sort_order - b.sort_order);
-                      const [moved] = originTasks.splice(dragged.taskIndex, 1);
-                      moved.column_key = column.key;
+                  setData((current) => {
+                    const allTasks = [...current.tasks];
+                    const originTasks = allTasks
+                      .filter((task) => task.column_key === dragged.column)
+                      .sort((a, b) => a.sort_order - b.sort_order);
+                    const [moved] = originTasks.splice(dragged.taskIndex, 1);
 
-                      const destTasks = allTasks.filter(t => t.column_key === column.key).sort((a, b) => a.sort_order - b.sort_order);
-                      if (dragged.column !== column.key) {
-                         destTasks.push(moved);
-                      } else {
-                         originTasks.push(moved);
-                      }
-                      
-                      const newTasks = allTasks.filter(t => t.column_key !== dragged.column && t.column_key !== column.key)
-                        .concat(originTasks.map((t, i) => ({ ...t, sort_order: i })))
-                        .concat(dragged.column !== column.key ? destTasks.map((t, i) => ({ ...t, sort_order: i })) : []);
-                        
-                      return { ...current, tasks: newTasks };
-                    });
-                    draggedRef.current = null;
-                  }}
-                  className="rounded-[1.4rem] border border-[var(--line)] bg-white p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
-                      {column.label}
-                    </p>
-                    <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-                      {columnTasks.length}
-                    </span>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {columnTasks.map((task, taskIndex) => (
-                      <div
-                        key={task.id}
-                        draggable={editable}
-                        onDragStart={() => {
-                          draggedRef.current = { column: column.key, taskIndex };
-                        }}
-                        className={cn(
-                          "rounded-[1.2rem] border border-[var(--line)] bg-[var(--surface)] p-4",
-                          editable ? "cursor-move" : "",
-                        )}
-                      >
-                        <textarea
-                          value={task.content}
-                          disabled={!editable}
-                          onChange={(e) => {
-                            setData(current => {
-                               const newTasks = current.tasks.map(t => t.id === task.id ? { ...t, content: e.target.value } : t);
-                               return { ...current, tasks: newTasks };
-                            });
-                          }}
-                          className="min-h-24 w-full resize-y bg-transparent text-sm leading-6 text-[var(--ink)] outline-none"
-                        />
-                        {editable && (
-                          <div className="mt-3 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                 setData(current => ({ ...current, tasks: current.tasks.filter(t => t.id !== task.id) }));
-                              }}
-                              className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)] transition hover:text-rose-700"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {editable && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setData(current => ({
-                          ...current,
-                          tasks: [...current.tasks, { id: crypto.randomUUID(), project_id: current.id, column_key: column.key, content: "Nueva tarea", sort_order: columnTasks.length }]
-                        }));
-                      }}
-                      className="mt-4 w-full rounded-full border border-dashed border-[var(--line-strong)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)] transition hover:bg-[var(--surface-2)]"
-                    >
-                      Agregar tarea
-                    </button>
-                  )}
+                    if (!moved) return current;
+
+                    moved.column_key = column.key;
+
+                    const destTasks = allTasks
+                      .filter((task) => task.column_key === column.key)
+                      .sort((a, b) => a.sort_order - b.sort_order);
+
+                    if (dragged.column !== column.key) {
+                      destTasks.push(moved);
+                    } else {
+                      originTasks.push(moved);
+                    }
+
+                    const newTasks = allTasks
+                      .filter((task) => task.column_key !== dragged.column && task.column_key !== column.key)
+                      .concat(originTasks.map((task, index) => ({ ...task, sort_order: index })))
+                      .concat(
+                        dragged.column !== column.key
+                          ? destTasks.map((task, index) => ({ ...task, sort_order: index }))
+                          : [],
+                      );
+
+                    return { ...current, tasks: newTasks };
+                  });
+                  draggedRef.current = null;
+                }}
+                className="rounded-[1.4rem] border border-[var(--line)] bg-white p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+                    {column.label}
+                  </p>
+                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    {columnTasks.length}
+                  </span>
                 </div>
-              );
-            })}
-         </div>
+                <div className="mt-4 space-y-3">
+                  {columnTasks.map((task, taskIndex) => (
+                    <div
+                      key={task.id}
+                      draggable={editable}
+                      onDragStart={() => {
+                        draggedRef.current = { column: column.key, taskIndex };
+                      }}
+                      className={cn(
+                        "rounded-[1.2rem] border border-[var(--line)] bg-[var(--surface)] p-4",
+                        editable ? "cursor-move" : "",
+                      )}
+                    >
+                      <textarea
+                        value={task.content}
+                        disabled={!editable}
+                        onChange={(e) => {
+                          setData((current) => ({
+                            ...current,
+                            tasks: current.tasks.map((currentTask) =>
+                              currentTask.id === task.id
+                                ? { ...currentTask, content: e.target.value }
+                                : currentTask,
+                            ),
+                          }));
+                        }}
+                        className="min-h-24 w-full resize-y bg-transparent text-sm leading-6 text-[var(--ink)] outline-none"
+                      />
+                      {editable ? (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setData((current) => ({
+                                ...current,
+                                tasks: current.tasks.filter((currentTask) => currentTask.id !== task.id),
+                              }));
+                            }}
+                            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)] transition hover:text-rose-700"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                {editable ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setData((current) => ({
+                        ...current,
+                        tasks: [
+                          ...current.tasks,
+                          {
+                            id: crypto.randomUUID(),
+                            project_id: current.id,
+                            column_key: column.key,
+                            content: "Nueva tarea",
+                            sort_order: columnTasks.length,
+                          },
+                        ],
+                      }));
+                    }}
+                    className="mt-4 w-full rounded-full border border-dashed border-[var(--line-strong)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)] transition hover:bg-[var(--surface-2)]"
+                  >
+                    Agregar tarea
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
   );
@@ -257,5 +288,9 @@ function SavePill({ state }: { state: SaveState }) {
           ? "Guardado"
           : "Sin cambios";
 
-  return <span className={cn("rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em]", tone)}>{label}</span>;
+  return (
+    <span className={cn("rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em]", tone)}>
+      {label}
+    </span>
+  );
 }

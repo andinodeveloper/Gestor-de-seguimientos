@@ -22,7 +22,7 @@ export function downloadFileName(base: string, ext: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return `${safe || "seguimiento"}.${ext}`;
+  return `${safe || "registro"}.${ext}`;
 }
 
 export function downloadBlob(blob: Blob, fileName: string) {

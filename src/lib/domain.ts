@@ -15,6 +15,11 @@ export function canEditRole(role: Role) {
   return role === "admin" || role === "editor";
 }
 
+export function canEditOwnedRecord(role: Role, actorId: string | null | undefined, ownerId: string) {
+  if (!actorId) return false;
+  return role === "admin" || (role === "editor" && actorId === ownerId);
+}
+
 export function isAdminRole(role: Role) {
   return role === "admin";
 }

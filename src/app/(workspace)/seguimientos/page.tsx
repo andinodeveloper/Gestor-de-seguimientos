@@ -103,7 +103,7 @@ function DashboardContent() {
         <div className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Listado maestro</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-[var(--ink)]">
-            Registros de Seguimiento
+            Registros Operativos
           </h2>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
             Gestiona documentos, actividades y proyectos de forma independiente.
@@ -112,12 +112,14 @@ function DashboardContent() {
         <div className="rounded-[2rem] border border-[var(--line)] bg-[var(--shell)] p-8 text-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Acciones</p>
           <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">
-            {profile?.role === "viewer" ? "Consulta disponible" : "Edicion habilitada"}
+            {profile?.role === "viewer" ? "Consulta disponible" : profile?.role === "admin" ? "Control global" : "Edicion por responsable"}
           </h3>
           <p className="mt-4 text-sm leading-7 text-white/[0.68]">
             {profile?.role === "viewer"
               ? "Puedes abrir cualquier registro y consultar su contenido."
-              : "Crea nuevos registros y administra los existentes desde esta misma vista."}
+              : profile?.role === "admin"
+                ? "Puedes crear registros y editar cualquier documento, actividad o proyecto del sistema."
+                : "Puedes crear registros y editar solo aquellos de los que eres responsable directo."}
           </p>
           {profile?.role !== "viewer" ? (
             <Link

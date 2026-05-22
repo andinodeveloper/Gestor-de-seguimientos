@@ -11,8 +11,8 @@ export const APP_NAME = "Gestor de Seguimientos";
 
 export const ROLE_OPTIONS: Array<{ value: Role; label: string; note: string }> = [
   { value: "admin", label: "Administrador", note: "Control total sobre contenido y usuarios." },
-  { value: "editor", label: "Editor", note: "Puede crear, editar, archivar y exportar seguimientos." },
-  { value: "viewer", label: "Viewer", note: "Solo puede consultar y exportar información." },
+  { value: "editor", label: "Editor", note: "Puede crear y editar solo los registros que le pertenecen." },
+  { value: "viewer", label: "Viewer", note: "Solo puede consultar y exportar informacion." },
 ];
 
 export const DOCUMENT_STATUS_OPTIONS: DocumentStatus[] = [
@@ -41,12 +41,7 @@ export const DOCUMENT_STATUS_OPTIONS: DocumentStatus[] = [
   { code: "5.3", label: "5.3. CIERRE Y SEGUIMIENTO", progress: 100 },
 ];
 
-export const ACTIVITY_FREQUENCIES: ActivityFrequency[] = [
-  "Diaria",
-  "Semanal",
-  "Quincenal",
-  "Mensual",
-];
+export const ACTIVITY_FREQUENCIES: ActivityFrequency[] = ["Diaria", "Semanal", "Quincenal", "Mensual"];
 
 export const ACTIVITY_PRIORITIES: ActivityPriority[] = ["Baja", "Media", "Alta", "Critica"];
 

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/components/sign-out-button";
 
 const links = [
-  { href: "/seguimientos", label: "Seguimientos" },
+  { href: "/seguimientos", label: "Registros" },
   { href: "/seguimientos/nuevo", label: "Nuevo" },
 ];
 
@@ -35,7 +35,7 @@ export function AppShell({
               <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/50">Operacion</p>
               <h1 className="mt-4 text-3xl font-semibold tracking-[-0.06em]">{APP_NAME}</h1>
               <p className="mt-3 max-w-[16rem] text-sm leading-7 text-white/70">
-                Plataforma interna para control de documentos, actividades y proyectos con seguimiento persistente.
+                Plataforma interna para controlar documentos, actividades y proyectos como registros independientes.
               </p>
             </div>
 
@@ -97,7 +97,7 @@ export function AppShell({
                   Workspace
                 </p>
                 <h2 className="mt-1 text-2xl font-semibold tracking-[-0.05em]">
-                  {currentPath.startsWith("/admin") ? "Administracion de usuarios" : "Seguimientos compartidos"}
+                  {currentPath.startsWith("/admin") ? "Administracion de usuarios" : "Registros operativos"}
                 </h2>
               </div>
               <div className="hidden rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--muted)] md:block">

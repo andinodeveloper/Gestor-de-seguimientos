@@ -1,11 +1,12 @@
 "use client";
 
 import { startTransition, useEffect, useRef, useState } from "react";
+
 import { useAuthContext } from "@/components/auth-provider";
 import { ACTIVITY_FREQUENCIES, ACTIVITY_PRIORITIES, ACTIVITY_STATUSES } from "@/lib/constants";
-import { canEditRole } from "@/lib/domain";
+import { canEditOwnedRecord } from "@/lib/domain";
 import { updateActivity } from "@/lib/follow-ups";
-import type { ActivityTracking, Role, ActivityFrequency, ActivityPriority, ActivityStatus } from "@/lib/types";
+import type { ActivityFrequency, ActivityPriority, ActivityStatus, ActivityTracking, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -18,8 +19,8 @@ export function ActivityEditor({
   role: Role;
 }) {
   const { profile } = useAuthContext();
-  const editable = canEditRole(role);
-  
+  const editable = canEditOwnedRecord(role, profile?.id, activity.owner_id);
+
   const [data, setData] = useState(activity);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const firstRun = useRef(true);
@@ -72,7 +73,7 @@ export function ActivityEditor({
             </div>
             <SavePill state={saveState} />
           </div>
-          
+
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <Field label="Titulo">
               <input
@@ -98,7 +99,9 @@ export function ActivityEditor({
                 disabled={!editable}
               >
                 {ACTIVITY_FREQUENCIES.map((freq) => (
-                  <option key={freq} value={freq}>{freq}</option>
+                  <option key={freq} value={freq}>
+                    {freq}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -110,7 +113,9 @@ export function ActivityEditor({
                 disabled={!editable}
               >
                 {ACTIVITY_PRIORITIES.map((prio) => (
-                  <option key={prio} value={prio}>{prio}</option>
+                  <option key={prio} value={prio}>
+                    {prio}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -122,21 +127,23 @@ export function ActivityEditor({
                 disabled={!editable}
               >
                 {ACTIVITY_STATUSES.map((stat) => (
-                  <option key={stat} value={stat}>{stat}</option>
+                  <option key={stat} value={stat}>
+                    {stat}
+                  </option>
                 ))}
               </select>
             </Field>
           </div>
-          
+
           <div className="mt-6">
-             <Field label="Observaciones">
-                <textarea
-                  value={data.notes}
-                  onChange={(e) => setData((c) => ({ ...c, notes: e.target.value }))}
-                  className="field min-h-32 resize-y"
-                  disabled={!editable}
-                />
-             </Field>
+            <Field label="Observaciones">
+              <textarea
+                value={data.notes}
+                onChange={(e) => setData((c) => ({ ...c, notes: e.target.value }))}
+                className="field min-h-32 resize-y"
+                disabled={!editable}
+              />
+            </Field>
           </div>
         </div>
 
@@ -146,10 +153,11 @@ export function ActivityEditor({
             {data.status === "archived" ? "Archivado" : "Activo"}
           </h3>
           <div className="mt-8 space-y-4 text-sm text-white/70">
-            <p>Última actualización: {new Date(data.updated_at).toLocaleDateString()}</p>
+            <p>Responsable: {data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario del sistema"}</p>
+            <p>Ultima actualizacion: {new Date(data.updated_at).toLocaleDateString()}</p>
           </div>
           <div className="mt-8 grid gap-3">
-            {editable && (
+            {editable ? (
               <button
                 type="button"
                 onClick={handleToggleStatus}
@@ -157,7 +165,7 @@ export function ActivityEditor({
               >
                 {data.status === "archived" ? "Reactivar" : "Archivar"}
               </button>
-            )}
+            ) : null}
           </div>
         </aside>
       </section>
@@ -193,5 +201,9 @@ function SavePill({ state }: { state: SaveState }) {
           ? "Guardado"
           : "Sin cambios";
 
-  return <span className={cn("rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em]", tone)}>{label}</span>;
+  return (
+    <span className={cn("rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em]", tone)}>
+      {label}
+    </span>
+  );
 }

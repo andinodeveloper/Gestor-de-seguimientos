@@ -1,9 +1,10 @@
 "use client";
 
 import { startTransition, useEffect, useRef, useState } from "react";
+
 import { useAuthContext } from "@/components/auth-provider";
 import { DOCUMENT_STATUS_OPTIONS } from "@/lib/constants";
-import { canEditRole } from "@/lib/domain";
+import { canEditOwnedRecord } from "@/lib/domain";
 import { updateDocument } from "@/lib/follow-ups";
 import type { DocumentTracking, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -18,8 +19,8 @@ export function DocumentEditor({
   role: Role;
 }) {
   const { profile } = useAuthContext();
-  const editable = canEditRole(role);
-  
+  const editable = canEditOwnedRecord(role, profile?.id, document.owner_id);
+
   const [data, setData] = useState(document);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const firstRun = useRef(true);
@@ -97,24 +98,30 @@ export function DocumentEditor({
                 disabled={!editable}
               >
                 {DOCUMENT_STATUS_OPTIONS.map((status) => (
-                  <option key={status.code} value={status.code}>{status.label}</option>
+                  <option key={status.code} value={status.code}>
+                    {status.label}
+                  </option>
                 ))}
               </select>
             </Field>
-            <div className="flex flex-col justify-center items-center rounded-2xl bg-[var(--surface-2)] p-4 border border-[var(--line)]">
-               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Avance Calculado</p>
-               <p className="mt-2 text-3xl font-semibold text-[var(--accent)]">{data.progress_percent}%</p>
+            <div className="flex items-center justify-center rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-4">
+              <div className="text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+                  Avance Calculado
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-[var(--accent)]">{data.progress_percent}%</p>
+              </div>
             </div>
           </div>
           <div className="mt-6">
-             <Field label="Observaciones">
-                <textarea
-                  value={data.notes}
-                  onChange={(e) => setData((c) => ({ ...c, notes: e.target.value }))}
-                  className="field min-h-32 resize-y"
-                  disabled={!editable}
-                />
-             </Field>
+            <Field label="Observaciones">
+              <textarea
+                value={data.notes}
+                onChange={(e) => setData((c) => ({ ...c, notes: e.target.value }))}
+                className="field min-h-32 resize-y"
+                disabled={!editable}
+              />
+            </Field>
           </div>
         </div>
 
@@ -124,10 +131,11 @@ export function DocumentEditor({
             {data.status === "archived" ? "Archivado" : "Activo"}
           </h3>
           <div className="mt-8 space-y-4 text-sm text-white/70">
-            <p>Última actualización: {new Date(data.updated_at).toLocaleDateString()}</p>
+            <p>Responsable: {data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario del sistema"}</p>
+            <p>Ultima actualizacion: {new Date(data.updated_at).toLocaleDateString()}</p>
           </div>
           <div className="mt-8 grid gap-3">
-            {editable && (
+            {editable ? (
               <button
                 type="button"
                 onClick={handleToggleStatus}
@@ -135,7 +143,7 @@ export function DocumentEditor({
               >
                 {data.status === "archived" ? "Reactivar" : "Archivar"}
               </button>
-            )}
+            ) : null}
           </div>
         </aside>
       </section>
@@ -171,5 +179,9 @@ function SavePill({ state }: { state: SaveState }) {
           ? "Guardado"
           : "Sin cambios";
 
-  return <span className={cn("rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em]", tone)}>{label}</span>;
+  return (
+    <span className={cn("rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em]", tone)}>
+      {label}
+    </span>
+  );
 }

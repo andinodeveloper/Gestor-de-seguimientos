@@ -5,7 +5,7 @@ import { AuthProvider } from "@/components/auth-provider";
 
 export const metadata: Metadata = {
   title: "Gestor de Seguimientos",
-  description: "Gestor interno de seguimientos con usuarios, roles y Supabase.",
+  description: "Gestor interno de registros operativos con usuarios, roles y Supabase.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

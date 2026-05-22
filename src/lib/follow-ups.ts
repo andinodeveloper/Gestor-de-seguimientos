@@ -17,6 +17,20 @@ export type ListFilters = {
   archived?: "active" | "archived" | "all";
 };
 
+function getSupabaseErrorMessage(message: string) {
+  if (
+    message.includes("schema cache") &&
+    (message.includes("public.documents") ||
+      message.includes("public.activities") ||
+      message.includes("public.projects") ||
+      message.includes("public.project_tasks"))
+  ) {
+    return "El proyecto Supabase actual no tiene cargado el esquema operativo esperado. Ejecuta la migracion o el schema.sql actualizado.";
+  }
+
+  return message;
+}
+
 // -- DOCUMENTS --
 
 export async function listDocuments(filters: ListFilters = {}) {
@@ -38,7 +52,7 @@ export async function listDocuments(filters: ListFilters = {}) {
   }
 
   const { data, error } = await query;
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
 
   return (data ?? []).map((doc: DocumentTracking) => {
     const status = DOCUMENT_STATUS_OPTIONS.find((item) => item.code === doc.status_code);
@@ -71,7 +85,7 @@ export async function createDocument(input: {
     .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   await recordAuditEvent({ actorId: input.ownerId, entityType: "document", entityId: data.id, action: "created" });
   return data as DocumentTracking;
 }
@@ -94,7 +108,7 @@ export async function updateDocument(id: string, actorId: string, payload: Parti
   if (payload.notes !== undefined) updates.notes = payload.notes;
 
   const { data, error } = await supabase.from("documents").update(updates).eq("id", id).select("*").single();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   await recordAuditEvent({ actorId, entityType: "document", entityId: id, action: "updated" });
   return data as DocumentTracking;
 }
@@ -102,7 +116,7 @@ export async function updateDocument(id: string, actorId: string, payload: Parti
 export async function getDocument(id: string) {
   const supabase = createSupabaseBrowserClient();
   const { data, error } = await supabase.from("documents").select("*").eq("id", id).maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   if (!data) return null;
   const status = DOCUMENT_STATUS_OPTIONS.find((item) => item.code === data.status_code);
   return {
@@ -133,7 +147,7 @@ export async function listActivities(filters: ListFilters = {}) {
   }
 
   const { data, error } = await query;
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   return (data ?? []) as ActivityTracking[];
 }
 
@@ -157,7 +171,7 @@ export async function createActivity(input: {
     .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   await recordAuditEvent({ actorId: input.ownerId, entityType: "activity", entityId: data.id, action: "created" });
   return data as ActivityTracking;
 }
@@ -175,7 +189,7 @@ export async function updateActivity(id: string, actorId: string, payload: Parti
   if (payload.notes !== undefined) updates.notes = payload.notes;
 
   const { data, error } = await supabase.from("activities").update(updates).eq("id", id).select("*").single();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   await recordAuditEvent({ actorId, entityType: "activity", entityId: id, action: "updated" });
   return data as ActivityTracking;
 }
@@ -183,7 +197,7 @@ export async function updateActivity(id: string, actorId: string, payload: Parti
 export async function getActivity(id: string) {
   const supabase = createSupabaseBrowserClient();
   const { data, error } = await supabase.from("activities").select("*").eq("id", id).maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   return data as ActivityTracking | null;
 }
 
@@ -208,7 +222,7 @@ export async function listProjects(filters: ListFilters = {}) {
   }
 
   const { data, error } = await query;
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
 
   const projects = data ?? [];
   if (projects.length === 0) return [];
@@ -258,12 +272,12 @@ export async function updateProject(id: string, actorId: string, payload: Partia
     if (payload.status !== undefined) updates.status = payload.status;
     
     const { error } = await supabase.from("projects").update(updates).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(getSupabaseErrorMessage(error.message));
   }
 
   if (payload.tasks) {
     const { error: deleteError } = await supabase.from("project_tasks").delete().eq("project_id", id);
-    if (deleteError) throw new Error(deleteError.message);
+    if (deleteError) throw new Error(getSupabaseErrorMessage(deleteError.message));
     
     if (payload.tasks.length > 0) {
       const taskRows = payload.tasks.map((task, index) => ({
@@ -274,7 +288,7 @@ export async function updateProject(id: string, actorId: string, payload: Partia
         sort_order: index,
       }));
       const { error: insertError } = await supabase.from("project_tasks").insert(taskRows);
-      if (insertError) throw new Error(insertError.message);
+      if (insertError) throw new Error(getSupabaseErrorMessage(insertError.message));
     }
   }
 
@@ -289,7 +303,7 @@ export async function getProject(id: string) {
     supabase.from("project_tasks").select("*").eq("project_id", id).order("sort_order", { ascending: true }),
   ]);
   
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   if (!project) return null;
   
   return {
