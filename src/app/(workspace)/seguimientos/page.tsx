@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useAuthContext } from "@/components/auth-provider";
 import { getOperationalSnapshot, getProjectProgress } from "@/lib/follow-ups";
@@ -14,12 +14,16 @@ import type {
 import { cn, formatDate } from "@/lib/utils";
 
 type ArchiveFilter = "active" | "archived" | "all";
+type RecordTab = "documents" | "activities" | "projects";
+
+const RECORD_TAB_IDS = new Set<RecordTab>(["documents", "activities", "projects"]);
 
 export default function RecordsHubPage() {
   const { profile } = useAuthContext();
   const [snapshot, setSnapshot] = useState<OperationalSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<RecordTab>("documents");
 
   useEffect(() => {
     let ignore = false;
@@ -46,6 +50,24 @@ export default function RecordsHubPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncTabWithHash = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (RECORD_TAB_IDS.has(hash as RecordTab)) {
+        setActiveTab(hash as RecordTab);
+      }
+    };
+
+    syncTabWithHash();
+    window.addEventListener("hashchange", syncTabWithHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncTabWithHash);
+    };
+  }, []);
+
   const activeTotals = useMemo(() => {
     if (!snapshot) {
       return { documents: 0, activities: 0, projects: 0 };
@@ -59,6 +81,34 @@ export default function RecordsHubPage() {
   }, [snapshot]);
 
   const canCreate = profile?.role !== "viewer";
+  const tabs = [
+    {
+      id: "documents" as const,
+      label: "Documentos",
+      note: "Control documental y avance por fase.",
+      total: activeTotals.documents,
+    },
+    {
+      id: "activities" as const,
+      label: "Actividades",
+      note: "Operacion diaria con prioridad y frecuencia.",
+      total: activeTotals.activities,
+    },
+    {
+      id: "projects" as const,
+      label: "Proyectos",
+      note: "Tableros kanban con progreso derivado.",
+      total: activeTotals.projects,
+    },
+  ];
+
+  function handleTabChange(tab: RecordTab) {
+    setActiveTab(tab);
+
+    if (typeof window !== "undefined" && window.location.hash !== `#${tab}`) {
+      window.history.replaceState(null, "", `#${tab}`);
+    }
+  }
 
   if (error) {
     return (
@@ -110,101 +160,154 @@ export default function RecordsHubPage() {
         </div>
       </section>
 
-      <div className="module-stack">
-        <RecordsModule
-          id="documents"
-          title="Documentos"
-          note="Estado documental, avance de fases y observaciones de control."
-          createLabel="Crear documento"
-          createHref="/seguimientos/nuevo?type=document"
-          canCreate={canCreate}
-          total={snapshot.documents.length}
-          items={snapshot.documents}
-          getSearchText={(item) => [item.title, item.organizational_unit, item.status_label].join(" ")}
-          getHref={(item) => `/seguimientos/detalle?type=document&id=${item.id}`}
-          renderStatus={(item) => (
-            <div className="record-status-block">
-              <strong>{item.status_label}</strong>
-              <span>{item.progress_percent}% de avance</span>
-            </div>
-          )}
-          renderSummary={(items) => {
-            const active = items.filter((item) => item.status === "active").length;
-            const highProgress = items.filter((item) => item.progress_percent >= 85).length;
-            return (
-              <>
-                <SummaryMini label="Activos" value={active} />
-                <SummaryMini label="Avance alto" value={highProgress} />
-              </>
-            );
-          }}
-        />
+      <section className="section-panel section-panel-contrast">
+        <div className="section-heading">
+          <div>
+            <p className="section-eyebrow">Secciones</p>
+            <h2 className="section-title">Registros por tipo</h2>
+          </div>
+          <p className="section-note">Cambia entre modulos sin salir del listado principal.</p>
+        </div>
 
-        <RecordsModule
-          id="activities"
-          title="Actividades"
-          note="Seguimiento operativo con frecuencia, prioridad y estado de ejecucion."
-          createLabel="Crear actividad"
-          createHref="/seguimientos/nuevo?type=activity"
-          canCreate={canCreate}
-          total={snapshot.activities.length}
-          items={snapshot.activities}
-          getSearchText={(item) => [item.title, item.organizational_unit, item.activity_status, item.priority].join(" ")}
-          getHref={(item) => `/seguimientos/detalle?type=activity&id=${item.id}`}
-          renderStatus={(item) => (
-            <div className="record-status-block">
-              <strong>{item.activity_status}</strong>
-              <span>
-                {item.frequency} · {item.priority}
-              </span>
-            </div>
-          )}
-          renderSummary={(items) => {
-            const completed = items.filter((item) => item.activity_status === "Completado").length;
-            const inProcess = items.filter((item) => item.activity_status === "En Proceso").length;
-            return (
-              <>
-                <SummaryMini label="En proceso" value={inProcess} />
-                <SummaryMini label="Completadas" value={completed} />
-              </>
-            );
-          }}
-        />
+        <div className="records-tablist" role="tablist" aria-label="Secciones de registros">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`panel-${tab.id}`}
+              className={cn("records-tab", activeTab === tab.id ? "records-tab-active" : "")}
+              onClick={() => handleTabChange(tab.id)}
+            >
+              <span className="records-tab-label">{tab.label}</span>
+              <strong className="records-tab-count">{tab.total}</strong>
+              <span className="records-tab-note">{tab.note}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
-        <RecordsModule
-          id="projects"
-          title="Proyectos / Kanban"
-          note="Tableros con tareas, progreso derivado y cierre por columna."
-          createLabel="Crear proyecto"
-          createHref="/seguimientos/nuevo?type=project"
-          canCreate={canCreate}
-          total={snapshot.projects.length}
-          items={snapshot.projects}
-          getSearchText={(item) => [item.title, item.organizational_unit].join(" ")}
-          getHref={(item) => `/seguimientos/detalle?type=project&id=${item.id}`}
-          renderStatus={(item) => {
-            const { done, total, progress } = getProjectProgress(item);
-            return (
+      <div className="module-stack records-tab-panels">
+        <div
+          id="panel-documents"
+          role="tabpanel"
+          aria-labelledby="tab-documents"
+          hidden={activeTab !== "documents"}
+          className={cn("records-tab-panel", activeTab !== "documents" ? "records-tab-panel-hidden" : "")}
+        >
+          <RecordsModule
+            id="documents"
+            title="Documentos"
+            note="Estado documental, avance de fases y observaciones de control."
+            createLabel="Crear documento"
+            createHref="/seguimientos/nuevo?type=document"
+            canCreate={canCreate}
+            total={snapshot.documents.length}
+            items={snapshot.documents}
+            getSearchText={(item) => [item.title, item.organizational_unit, item.status_label].join(" ")}
+            getHref={(item) => `/seguimientos/detalle?type=document&id=${item.id}`}
+            renderStatus={(item) => (
               <div className="record-status-block">
-                <strong>{progress}% de avance</strong>
-                <span>{total === 0 ? "Sin tareas" : `${done}/${total} tareas finalizadas`}</span>
+                <strong>{item.status_label}</strong>
+                <span>{item.progress_percent}% de avance</span>
               </div>
-            );
-          }}
-          renderSummary={(items) => {
-            const totalTasks = items.reduce((acc, item) => acc + item.tasks.length, 0);
-            const completedBoards = items.filter((item) => {
-              const { done, total } = getProjectProgress(item);
-              return total > 0 && done === total;
-            }).length;
-            return (
-              <>
-                <SummaryMini label="Tareas totales" value={totalTasks} />
-                <SummaryMini label="Tableros cerrados" value={completedBoards} />
-              </>
-            );
-          }}
-        />
+            )}
+            renderSummary={(items) => {
+              const active = items.filter((item) => item.status === "active").length;
+              const highProgress = items.filter((item) => item.progress_percent >= 85).length;
+              return (
+                <>
+                  <SummaryMini label="Activos" value={active} />
+                  <SummaryMini label="Avance alto" value={highProgress} />
+                </>
+              );
+            }}
+          />
+        </div>
+
+        <div
+          id="panel-activities"
+          role="tabpanel"
+          aria-labelledby="tab-activities"
+          hidden={activeTab !== "activities"}
+          className={cn("records-tab-panel", activeTab !== "activities" ? "records-tab-panel-hidden" : "")}
+        >
+          <RecordsModule
+            id="activities"
+            title="Actividades"
+            note="Seguimiento operativo con frecuencia, prioridad y estado de ejecucion."
+            createLabel="Crear actividad"
+            createHref="/seguimientos/nuevo?type=activity"
+            canCreate={canCreate}
+            total={snapshot.activities.length}
+            items={snapshot.activities}
+            getSearchText={(item) => [item.title, item.organizational_unit, item.activity_status, item.priority].join(" ")}
+            getHref={(item) => `/seguimientos/detalle?type=activity&id=${item.id}`}
+            renderStatus={(item) => (
+              <div className="record-status-block">
+                <strong>{item.activity_status}</strong>
+                <span>
+                  {item.frequency} - {item.priority}
+                </span>
+              </div>
+            )}
+            renderSummary={(items) => {
+              const completed = items.filter((item) => item.activity_status === "Completado").length;
+              const inProcess = items.filter((item) => item.activity_status === "En Proceso").length;
+              return (
+                <>
+                  <SummaryMini label="En proceso" value={inProcess} />
+                  <SummaryMini label="Completadas" value={completed} />
+                </>
+              );
+            }}
+          />
+        </div>
+
+        <div
+          id="panel-projects"
+          role="tabpanel"
+          aria-labelledby="tab-projects"
+          hidden={activeTab !== "projects"}
+          className={cn("records-tab-panel", activeTab !== "projects" ? "records-tab-panel-hidden" : "")}
+        >
+          <RecordsModule
+            id="projects"
+            title="Proyectos / Kanban"
+            note="Tableros con tareas, progreso derivado y cierre por columna."
+            createLabel="Crear proyecto"
+            createHref="/seguimientos/nuevo?type=project"
+            canCreate={canCreate}
+            total={snapshot.projects.length}
+            items={snapshot.projects}
+            getSearchText={(item) => [item.title, item.organizational_unit].join(" ")}
+            getHref={(item) => `/seguimientos/detalle?type=project&id=${item.id}`}
+            renderStatus={(item) => {
+              const { done, total, progress } = getProjectProgress(item);
+              return (
+                <div className="record-status-block">
+                  <strong>{progress}% de avance</strong>
+                  <span>{total === 0 ? "Sin tareas" : `${done}/${total} tareas finalizadas`}</span>
+                </div>
+              );
+            }}
+            renderSummary={(items) => {
+              const totalTasks = items.reduce((acc, item) => acc + item.tasks.length, 0);
+              const completedBoards = items.filter((item) => {
+                const { done, total } = getProjectProgress(item);
+                return total > 0 && done === total;
+              }).length;
+              return (
+                <>
+                  <SummaryMini label="Tareas totales" value={totalTasks} />
+                  <SummaryMini label="Tableros cerrados" value={completedBoards} />
+                </>
+              );
+            }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -234,8 +337,8 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
   createLabel: string;
   getSearchText: (item: T) => string;
   getHref: (item: T) => string;
-  renderStatus: (item: T) => React.ReactNode;
-  renderSummary: (items: T[]) => React.ReactNode;
+  renderStatus: (item: T) => ReactNode;
+  renderSummary: (items: T[]) => ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [archived, setArchived] = useState<ArchiveFilter>("active");
@@ -286,7 +389,11 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
           className="field field-compact"
           placeholder={`Buscar en ${title.toLowerCase()}`}
         />
-        <select value={archived} onChange={(event) => setArchived(event.target.value as ArchiveFilter)} className="field field-compact">
+        <select
+          value={archived}
+          onChange={(event) => setArchived(event.target.value as ArchiveFilter)}
+          className="field field-compact"
+        >
           <option value="active">Solo activos</option>
           <option value="archived">Solo archivados</option>
           <option value="all">Todos</option>
@@ -307,7 +414,7 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
                 <div>
                   <p className="record-title">{item.title}</p>
                   <p className="record-meta">
-                    {item.organizational_unit || "Sin unidad"} · Actualizado {formatDate(item.updated_at)}
+                    {item.organizational_unit || "Sin unidad"} - Actualizado {formatDate(item.updated_at)}
                   </p>
                 </div>
                 {renderStatus(item)}

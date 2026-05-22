@@ -146,16 +146,16 @@ export function ProjectEditor({
 
                     if (!moved) return current;
 
-                    moved.column_key = column.key;
+                    const movedTask = { ...moved, column_key: column.key };
 
                     const destTasks = allTasks
-                      .filter((task) => task.column_key === column.key)
+                      .filter((task) => task.column_key === column.key && task.id !== moved.id)
                       .sort((a, b) => a.sort_order - b.sort_order);
 
                     if (dragged.column !== column.key) {
-                      destTasks.push(moved);
+                      destTasks.push(movedTask);
                     } else {
-                      originTasks.push(moved);
+                      originTasks.push(movedTask);
                     }
 
                     const newTasks = allTasks
