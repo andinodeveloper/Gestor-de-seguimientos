@@ -203,15 +203,19 @@ textarea {
 
 @media (min-width: 1100px) {
   .app-shell-grid {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .app-shell-grid-collapsed {
+    grid-template-columns: 98px minmax(0, 1fr);
   }
 }
 
 .shell-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1.6rem;
-  padding: 1.35rem;
+  gap: 1rem;
+  padding: 1rem;
   color: white;
   background:
     radial-gradient(circle at top left, rgba(190, 255, 222, 0.16), transparent 32%),
@@ -229,16 +233,37 @@ textarea {
   }
 }
 
+.shell-sidebar-top {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shell-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.shell-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .shell-brand,
 .shell-profile {
-  border-radius: 1.6rem;
+  border-radius: 1.3rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(16px);
 }
 
 .shell-brand {
-  padding: 1.25rem 1.2rem;
+  padding: 1rem;
 }
 
 .shell-kicker {
@@ -255,18 +280,17 @@ textarea {
 }
 
 .shell-title {
-  margin: 0.9rem 0 0;
-  font-size: clamp(1.9rem, 2vw, 2.35rem);
-  line-height: 0.98;
+  margin: 0.65rem 0 0;
+  font-size: clamp(1.55rem, 2vw, 2rem);
+  line-height: 1;
   letter-spacing: -0.07em;
 }
 
 .shell-description {
-  margin: 0.95rem 0 0;
-  max-width: 19rem;
-  font-size: 0.9rem;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.72);
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.66);
 }
 
 .shell-nav {
@@ -285,8 +309,9 @@ textarea {
 .shell-nav-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   border-radius: 999px;
-  padding: 0.78rem 1rem;
+  padding: 0.82rem 1rem;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -306,11 +331,22 @@ textarea {
   background: white;
 }
 
+.shell-nav-link-collapsed {
+  padding-inline: 0.75rem;
+}
+
+.shell-nav-link-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+}
+
 .shell-profile {
   margin-top: auto;
-  padding: 1.1rem 1.15rem;
+  padding: 0.95rem 1rem;
   display: grid;
-  gap: 0.8rem;
+  gap: 0.7rem;
 }
 
 .shell-profile-kicker {
@@ -342,6 +378,23 @@ textarea {
   flex-wrap: wrap;
 }
 
+.shell-profile-collapsed {
+  justify-items: center;
+}
+
+.shell-profile-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .shell-role-pill {
   display: inline-flex;
   align-items: center;
@@ -369,7 +422,7 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.15rem 1rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--line);
   background: rgba(247, 244, 236, 0.8);
   backdrop-filter: blur(20px);
@@ -382,9 +435,9 @@ textarea {
 }
 
 .shell-header-title {
-  margin: 0.35rem 0 0;
-  font-size: clamp(1.4rem, 2vw, 2rem);
-  line-height: 1.02;
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+  line-height: 1.04;
   letter-spacing: -0.06em;
 }
 
@@ -415,7 +468,7 @@ textarea {
 .shell-content {
   flex: 1;
   min-width: 0;
-  padding: 1rem;
+  padding: 0.9rem;
 }
 
 @media (min-width: 768px) {
@@ -426,7 +479,7 @@ textarea {
 
 .shell-content-inner {
   width: 100%;
-  max-width: 1580px;
+  max-width: 1680px;
   margin: 0 auto;
 }
 
@@ -683,6 +736,19 @@ textarea {
   gap: 0.8rem;
 }
 
+.module-head-compact {
+  align-items: start;
+}
+
+.module-panel-compact {
+  padding: 1rem 1.05rem;
+}
+
+.module-title-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .module-actions {
   width: 100%;
 }
@@ -698,6 +764,10 @@ textarea {
   display: grid;
   gap: 0.75rem;
   margin-top: 1rem;
+}
+
+.module-toolbar-compact {
+  margin-top: 0.85rem;
 }
 
 .records-tablist,
@@ -785,6 +855,87 @@ textarea {
   display: none;
 }
 
+.records-topbar,
+.records-switcher {
+  border-radius: 1.35rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(18px);
+}
+
+.records-topbar {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1.05rem;
+}
+
+@media (min-width: 1024px) {
+  .records-topbar {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    align-items: end;
+  }
+}
+
+.records-topbar-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.records-page-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1;
+  letter-spacing: -0.07em;
+}
+
+.records-topbar-stats {
+  display: grid;
+  gap: 0.7rem;
+}
+
+@media (min-width: 768px) {
+  .records-topbar-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.records-switcher {
+  display: flex;
+  gap: 0.55rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+}
+
+.records-switcher-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-width: 180px;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.records-switcher-tab strong {
+  font-size: 0.92rem;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+
+.records-switcher-tab-active {
+  background: rgba(29, 120, 89, 0.08);
+  color: var(--accent);
+  border-color: rgba(29, 120, 89, 0.16);
+}
+
 @media (min-width: 900px) {
   .module-toolbar {
     grid-template-columns: minmax(0, 1.5fr) 220px auto;
@@ -816,7 +967,7 @@ textarea {
 .timeline-row {
   display: grid;
   gap: 0.9rem;
-  padding: 0.95rem 1rem;
+  padding: 0.9rem 0.95rem;
 }
 
 @media (min-width: 900px) {
@@ -847,7 +998,7 @@ textarea {
 .timeline-title,
 .highlight-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.96rem;
   font-weight: 700;
   line-height: 1.25;
 }
@@ -862,7 +1013,7 @@ textarea {
 .highlight-score,
 .timeline-time,
 .highlight-date {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -997,7 +1148,7 @@ textarea {
 .module-footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
+  margin-top: 0.8rem;
 }
 
 .timeline-time,
@@ -1013,6 +1164,10 @@ textarea {
 @media (max-width: 767px) {
   .shell-header-meta {
     display: none;
+  }
+
+  .shell-sidebar-top {
+    justify-content: flex-start;
   }
 
   .highlight-row,

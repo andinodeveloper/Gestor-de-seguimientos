@@ -82,24 +82,9 @@ export default function RecordsHubPage() {
 
   const canCreate = profile?.role !== "viewer";
   const tabs = [
-    {
-      id: "documents" as const,
-      label: "Documentos",
-      note: "Control documental y avance por fase.",
-      total: activeTotals.documents,
-    },
-    {
-      id: "activities" as const,
-      label: "Actividades",
-      note: "Operacion diaria con prioridad y frecuencia.",
-      total: activeTotals.activities,
-    },
-    {
-      id: "projects" as const,
-      label: "Proyectos",
-      note: "Tableros kanban con progreso derivado.",
-      total: activeTotals.projects,
-    },
+    { id: "documents" as const, label: "Documentos", total: activeTotals.documents },
+    { id: "activities" as const, label: "Actividades", total: activeTotals.activities },
+    { id: "projects" as const, label: "Proyectos", total: activeTotals.projects },
   ];
 
   function handleTabChange(tab: RecordTab) {
@@ -123,7 +108,7 @@ export default function RecordsHubPage() {
       <div className="page-stack">
         <div className="section-panel loading-panel">
           <p className="section-eyebrow">Cargando registros</p>
-          <p className="section-note">Preparando documentos, actividades y proyectos independientes.</p>
+          <p className="section-note">Preparando workspace.</p>
         </div>
       </div>
     );
@@ -131,77 +116,40 @@ export default function RecordsHubPage() {
 
   return (
     <div className="page-stack">
-      <section className="hero-grid">
-        <div className="hero-panel">
-          <div className="hero-copy">
-            <p className="hero-eyebrow">Registros operativos</p>
-            <h1 className="hero-title">Un solo workspace para documentos, actividades y kanban</h1>
-            <p className="hero-body">
-              Cada modulo conserva su propio filtro, su propia accion de creacion y su propio ritmo de trabajo.
-            </p>
-          </div>
-          <div className="hero-rails">
-            <div className="stat-ribbon">
-              <StatPill label="Documentos activos" value={activeTotals.documents} />
-              <StatPill label="Actividades activas" value={activeTotals.activities} />
-              <StatPill label="Proyectos activos" value={activeTotals.projects} />
-            </div>
-            <div className="meta-grid">
-              <div className="meta-tile">
-                <strong>{snapshot.documents.length + snapshot.activities.length + snapshot.projects.length}</strong>
-                <span>Registros visibles en este workspace</span>
-              </div>
-              <div className="meta-tile">
-                <strong>{profile?.role === "viewer" ? "Consulta" : "Operacion"}</strong>
-                <span>{profile?.role === "viewer" ? "Sin acciones de alta" : "Creacion desde cada modulo"}</span>
-              </div>
-            </div>
-          </div>
+      <section className="records-topbar">
+        <div className="records-topbar-copy">
+          <p className="section-eyebrow">Registros</p>
+          <h1 className="records-page-title">Superficie operativa</h1>
+        </div>
+        <div className="records-topbar-stats">
+          <SummaryMini label="Documentos" value={activeTotals.documents} />
+          <SummaryMini label="Actividades" value={activeTotals.activities} />
+          <SummaryMini label="Proyectos" value={activeTotals.projects} />
+          <SummaryMini label="Total" value={snapshot.documents.length + snapshot.activities.length + snapshot.projects.length} />
         </div>
       </section>
 
-      <section className="section-panel section-panel-contrast">
-        <div className="section-heading">
-          <div>
-            <p className="section-eyebrow">Secciones</p>
-            <h2 className="section-title">Registros por tipo</h2>
-          </div>
-          <p className="section-note">Cambia entre modulos sin salir del listado principal.</p>
-        </div>
-
-        <div className="records-tablist" role="tablist" aria-label="Secciones de registros">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              id={`tab-${tab.id}`}
-              aria-selected={activeTab === tab.id}
-              aria-controls={`panel-${tab.id}`}
-              className={cn("records-tab", activeTab === tab.id ? "records-tab-active" : "")}
-              onClick={() => handleTabChange(tab.id)}
-            >
-              <span className="records-tab-label">{tab.label}</span>
-              <strong className="records-tab-count">{tab.total}</strong>
-              <span className="records-tab-note">{tab.note}</span>
-            </button>
-          ))}
-        </div>
+      <section className="records-switcher" aria-label="Tipos de registro">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={cn("records-switcher-tab", activeTab === tab.id ? "records-switcher-tab-active" : "")}
+            onClick={() => handleTabChange(tab.id)}
+            aria-pressed={activeTab === tab.id}
+          >
+            <span>{tab.label}</span>
+            <strong>{tab.total}</strong>
+          </button>
+        ))}
       </section>
 
-      <div className="module-stack records-tab-panels">
-        <div
-          id="panel-documents"
-          role="tabpanel"
-          aria-labelledby="tab-documents"
-          hidden={activeTab !== "documents"}
-          className={cn("records-tab-panel", activeTab !== "documents" ? "records-tab-panel-hidden" : "")}
-        >
+      <div className="module-stack">
+        <div id="panel-documents" hidden={activeTab !== "documents"}>
           <RecordsModule
             id="documents"
             title="Documentos"
-            note="Estado documental, avance de fases y observaciones de control."
-            createLabel="Crear documento"
+            createLabel="Nuevo documento"
             createHref="/seguimientos/nuevo?type=document"
             canCreate={canCreate}
             total={snapshot.documents.length}
@@ -211,34 +159,23 @@ export default function RecordsHubPage() {
             renderStatus={(item) => (
               <div className="record-status-block">
                 <strong>{item.status_label}</strong>
-                <span>{item.progress_percent}% de avance</span>
+                <span>{item.progress_percent}%</span>
               </div>
             )}
-            renderSummary={(items) => {
-              const active = items.filter((item) => item.status === "active").length;
-              const highProgress = items.filter((item) => item.progress_percent >= 85).length;
-              return (
-                <>
-                  <SummaryMini label="Activos" value={active} />
-                  <SummaryMini label="Avance alto" value={highProgress} />
-                </>
-              );
-            }}
+            renderSummary={(items) => (
+              <>
+                <SummaryMini label="Activos" value={items.filter((item) => item.status === "active").length} />
+                <SummaryMini label="Avance alto" value={items.filter((item) => item.progress_percent >= 85).length} />
+              </>
+            )}
           />
         </div>
 
-        <div
-          id="panel-activities"
-          role="tabpanel"
-          aria-labelledby="tab-activities"
-          hidden={activeTab !== "activities"}
-          className={cn("records-tab-panel", activeTab !== "activities" ? "records-tab-panel-hidden" : "")}
-        >
+        <div id="panel-activities" hidden={activeTab !== "activities"}>
           <RecordsModule
             id="activities"
             title="Actividades"
-            note="Seguimiento operativo con frecuencia, prioridad y estado de ejecucion."
-            createLabel="Crear actividad"
+            createLabel="Nueva actividad"
             createHref="/seguimientos/nuevo?type=activity"
             canCreate={canCreate}
             total={snapshot.activities.length}
@@ -248,36 +185,23 @@ export default function RecordsHubPage() {
             renderStatus={(item) => (
               <div className="record-status-block">
                 <strong>{item.activity_status}</strong>
-                <span>
-                  {item.frequency} - {item.priority}
-                </span>
+                <span>{item.priority}</span>
               </div>
             )}
-            renderSummary={(items) => {
-              const completed = items.filter((item) => item.activity_status === "Completado").length;
-              const inProcess = items.filter((item) => item.activity_status === "En Proceso").length;
-              return (
-                <>
-                  <SummaryMini label="En proceso" value={inProcess} />
-                  <SummaryMini label="Completadas" value={completed} />
-                </>
-              );
-            }}
+            renderSummary={(items) => (
+              <>
+                <SummaryMini label="Proceso" value={items.filter((item) => item.activity_status === "En Proceso").length} />
+                <SummaryMini label="Completadas" value={items.filter((item) => item.activity_status === "Completado").length} />
+              </>
+            )}
           />
         </div>
 
-        <div
-          id="panel-projects"
-          role="tabpanel"
-          aria-labelledby="tab-projects"
-          hidden={activeTab !== "projects"}
-          className={cn("records-tab-panel", activeTab !== "projects" ? "records-tab-panel-hidden" : "")}
-        >
+        <div id="panel-projects" hidden={activeTab !== "projects"}>
           <RecordsModule
             id="projects"
-            title="Proyectos / Kanban"
-            note="Tableros con tareas, progreso derivado y cierre por columna."
-            createLabel="Crear proyecto"
+            title="Proyectos"
+            createLabel="Nuevo proyecto"
             createHref="/seguimientos/nuevo?type=project"
             canCreate={canCreate}
             total={snapshot.projects.length}
@@ -288,8 +212,8 @@ export default function RecordsHubPage() {
               const { done, total, progress } = getProjectProgress(item);
               return (
                 <div className="record-status-block">
-                  <strong>{progress}% de avance</strong>
-                  <span>{total === 0 ? "Sin tareas" : `${done}/${total} tareas finalizadas`}</span>
+                  <strong>{progress}%</strong>
+                  <span>{total === 0 ? "Sin tareas" : `${done}/${total}`}</span>
                 </div>
               );
             }}
@@ -299,10 +223,11 @@ export default function RecordsHubPage() {
                 const { done, total } = getProjectProgress(item);
                 return total > 0 && done === total;
               }).length;
+
               return (
                 <>
-                  <SummaryMini label="Tareas totales" value={totalTasks} />
-                  <SummaryMini label="Tableros cerrados" value={completedBoards} />
+                  <SummaryMini label="Tareas" value={totalTasks} />
+                  <SummaryMini label="Cerrados" value={completedBoards} />
                 </>
               );
             }}
@@ -316,7 +241,6 @@ export default function RecordsHubPage() {
 function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTracking>({
   id,
   title,
-  note,
   items,
   total,
   canCreate,
@@ -329,7 +253,6 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
 }: {
   id: string;
   title: string;
-  note: string;
   items: T[];
   total: number;
   canCreate: boolean | undefined;
@@ -356,21 +279,21 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
     });
   }, [archived, getSearchText, items, query]);
 
-  const visibleItems = showAll ? filtered : filtered.slice(0, 5);
+  const visibleItems = showAll ? filtered : filtered.slice(0, 6);
 
   useEffect(() => {
     setShowAll(false);
   }, [query, archived]);
 
   return (
-    <section id={id} className="module-panel">
-      <div className="module-head">
-        <div className="module-headline">
-          <div>
-            <p className="section-eyebrow">{title}</p>
-            <h2 className="section-title">{title}</h2>
+    <section id={id} className="module-panel module-panel-compact">
+      <div className="module-head module-head-compact">
+        <div className="module-title-block">
+          <h2 className="section-title">{title}</h2>
+          <div className="module-meta">
+            <span>{filtered.length} visibles</span>
+            <span>{total} totales</span>
           </div>
-          <p className="section-note">{note}</p>
         </div>
         <div className="module-actions">
           <div className="compact-grid">{renderSummary(items)}</div>
@@ -382,7 +305,7 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
         </div>
       </div>
 
-      <div className="module-toolbar">
+      <div className="module-toolbar module-toolbar-compact">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -394,19 +317,15 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
           onChange={(event) => setArchived(event.target.value as ArchiveFilter)}
           className="field field-compact"
         >
-          <option value="active">Solo activos</option>
-          <option value="archived">Solo archivados</option>
+          <option value="active">Activos</option>
+          <option value="archived">Archivados</option>
           <option value="all">Todos</option>
         </select>
-        <div className="module-meta">
-          <span>{filtered.length} visibles</span>
-          <span>{total} totales</span>
-        </div>
       </div>
 
       <div className="record-list">
         {visibleItems.length === 0 ? (
-          <div className="empty-strip">No hay registros que coincidan con este filtro.</div>
+          <div className="empty-strip">No hay registros para este filtro.</div>
         ) : (
           visibleItems.map((item) => (
             <article key={item.id} className="record-row">
@@ -414,7 +333,7 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
                 <div>
                   <p className="record-title">{item.title}</p>
                   <p className="record-meta">
-                    {item.organizational_unit || "Sin unidad"} - Actualizado {formatDate(item.updated_at)}
+                    {item.organizational_unit || "Sin unidad"} · {formatDate(item.updated_at)}
                   </p>
                 </div>
                 {renderStatus(item)}
@@ -432,7 +351,7 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
         )}
       </div>
 
-      {filtered.length > 5 ? (
+      {filtered.length > 6 ? (
         <div className="module-footer">
           <button type="button" className="ghost-button" onClick={() => setShowAll((current) => !current)}>
             {showAll ? "Mostrar menos" : "Ver mas"}
@@ -446,15 +365,6 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
 function SummaryMini({ label, value }: { label: string; value: number }) {
   return (
     <div className="summary-mini">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function StatPill({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="stat-pill">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>

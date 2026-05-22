@@ -5,7 +5,7 @@ import { startTransition, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export function SignOutButton() {
+export function SignOutButton({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
 
@@ -25,8 +25,10 @@ export function SignOutButton() {
       type="button"
       onClick={handleSignOut}
       className="ghost-button ghost-button-inverse whitespace-nowrap"
+      aria-label="Cerrar sesion"
+      title="Cerrar sesion"
     >
-      {isPending ? "Saliendo..." : "Cerrar sesion"}
+      {isPending ? "Saliendo..." : compact ? "Salir" : "Cerrar sesion"}
     </button>
   );
 }
