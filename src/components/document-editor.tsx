@@ -63,21 +63,38 @@ export function DocumentEditor({
   }
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[1.55fr_0.85fr]">
-        <div className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Documento</p>
-              <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-[var(--ink)]">{data.title}</h3>
+    <div className="page-stack">
+      <section className="editor-layout">
+        <div className="editor-main-card">
+          <div className="section-heading">
+            <div>
+              <p className="section-eyebrow">Documento</p>
+              <h2 className="section-title">{data.title}</h2>
+              <p className="section-note">Actualiza titulo, area, etapa maestra y observaciones desde una sola vista.</p>
             </div>
             <SavePill state={saveState} />
           </div>
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
+
+          <div className="editor-kpi-grid" style={{ marginTop: "1rem" }}>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Avance</span>
+              <strong>{data.progress_percent}%</strong>
+            </div>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Codigo de etapa</span>
+              <strong>{data.status_code}</strong>
+            </div>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Estado</span>
+              <strong>{data.status === "archived" ? "Archivado" : "Activo"}</strong>
+            </div>
+          </div>
+
+          <div className="editor-form-grid" style={{ marginTop: "1rem" }}>
             <Field label="Titulo">
               <input
                 value={data.title}
-                onChange={(e) => setData((c) => ({ ...c, title: e.target.value }))}
+                onChange={(e) => setData((current) => ({ ...current, title: e.target.value }))}
                 className="field"
                 disabled={!editable}
               />
@@ -85,7 +102,7 @@ export function DocumentEditor({
             <Field label="Unidad organizativa">
               <input
                 value={data.organizational_unit}
-                onChange={(e) => setData((c) => ({ ...c, organizational_unit: e.target.value }))}
+                onChange={(e) => setData((current) => ({ ...current, organizational_unit: e.target.value }))}
                 className="field"
                 disabled={!editable}
               />
@@ -93,7 +110,7 @@ export function DocumentEditor({
             <Field label="Estado maestro">
               <select
                 value={data.status_code}
-                onChange={(e) => setData((c) => ({ ...c, status_code: e.target.value }))}
+                onChange={(e) => setData((current) => ({ ...current, status_code: e.target.value }))}
                 className="field"
                 disabled={!editable}
               >
@@ -104,20 +121,17 @@ export function DocumentEditor({
                 ))}
               </select>
             </Field>
-            <div className="flex items-center justify-center rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-4">
-              <div className="text-center">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-                  Avance Calculado
-                </p>
-                <p className="mt-2 text-3xl font-semibold text-[var(--accent)]">{data.progress_percent}%</p>
-              </div>
+            <div className="meta-tile">
+              <strong>{data.status_label}</strong>
+              <span>Descripcion actual de la etapa seleccionada.</span>
             </div>
           </div>
-          <div className="mt-6">
+
+          <div style={{ marginTop: "1rem" }}>
             <Field label="Observaciones">
               <textarea
                 value={data.notes}
-                onChange={(e) => setData((c) => ({ ...c, notes: e.target.value }))}
+                onChange={(e) => setData((current) => ({ ...current, notes: e.target.value }))}
                 className="field min-h-32 resize-y"
                 disabled={!editable}
               />
@@ -125,26 +139,33 @@ export function DocumentEditor({
           </div>
         </div>
 
-        <aside className="rounded-[2rem] border border-[var(--line)] bg-[var(--shell)] p-8 text-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Estado General</p>
-          <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">
-            {data.status === "archived" ? "Archivado" : "Activo"}
-          </h3>
-          <div className="mt-8 space-y-4 text-sm text-white/70">
-            <p>Responsable: {data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario del sistema"}</p>
-            <p>Ultima actualizacion: {new Date(data.updated_at).toLocaleDateString()}</p>
+        <aside className="editor-side-card editor-side-card-contrast">
+          <p className="section-eyebrow">Estado general</p>
+          <h3 className="section-title">{data.status === "archived" ? "Registro archivado" : "Registro en seguimiento"}</h3>
+          <div className="editor-note-grid" style={{ marginTop: "1rem" }}>
+            <div className="meta-tile">
+              <strong>{data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario"}</strong>
+              <span>Responsable directo del registro</span>
+            </div>
+            <div className="meta-tile">
+              <strong>{new Date(data.updated_at).toLocaleDateString()}</strong>
+              <span>Ultima actualizacion registrada</span>
+            </div>
           </div>
-          <div className="mt-8 grid gap-3">
-            {editable ? (
+          <p className="section-note" style={{ marginTop: "1rem" }}>
+            Los cambios se guardan automaticamente cuando tienes permisos sobre el registro.
+          </p>
+          {editable ? (
+            <div style={{ marginTop: "1rem" }}>
               <button
                 type="button"
                 onClick={handleToggleStatus}
-                className="rounded-full border border-white/[0.14] px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.08] disabled:opacity-60"
+                className={cn("ghost-button", data.status === "archived" ? "" : "")}
               >
-                {data.status === "archived" ? "Reactivar" : "Archivar"}
+                {data.status === "archived" ? "Reactivar registro" : "Archivar registro"}
               </button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </aside>
       </section>
     </div>
@@ -153,7 +174,7 @@ export function DocumentEditor({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
+    <div className="page-stack" style={{ gap: "0.5rem" }}>
       <label className="label">{label}</label>
       {children}
     </div>

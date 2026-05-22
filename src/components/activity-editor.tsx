@@ -63,18 +63,34 @@ export function ActivityEditor({
   }
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[1.55fr_0.85fr]">
-        <div className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Actividad</p>
-              <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-[var(--ink)]">{data.title}</h3>
+    <div className="page-stack">
+      <section className="editor-layout">
+        <div className="editor-main-card">
+          <div className="section-heading">
+            <div>
+              <p className="section-eyebrow">Actividad</p>
+              <h2 className="section-title">{data.title}</h2>
+              <p className="section-note">Gestiona frecuencia, prioridad, estado operativo y observaciones en un formato mas claro y denso.</p>
             </div>
             <SavePill state={saveState} />
           </div>
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <div className="editor-kpi-grid" style={{ marginTop: "1rem" }}>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Frecuencia</span>
+              <strong>{data.frequency}</strong>
+            </div>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Prioridad</span>
+              <strong>{data.priority}</strong>
+            </div>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Estado</span>
+              <strong>{data.activity_status}</strong>
+            </div>
+          </div>
+
+          <div className="editor-form-grid" style={{ marginTop: "1rem" }}>
             <Field label="Titulo">
               <input
                 value={data.title}
@@ -119,7 +135,7 @@ export function ActivityEditor({
                 ))}
               </select>
             </Field>
-            <Field label="Estado Operativo">
+            <Field label="Estado operativo">
               <select
                 value={data.activity_status}
                 onChange={(e) => setData((c) => ({ ...c, activity_status: e.target.value as ActivityStatus }))}
@@ -133,9 +149,13 @@ export function ActivityEditor({
                 ))}
               </select>
             </Field>
+            <div className="meta-tile">
+              <strong>{data.status === "archived" ? "Archivado" : "Activo"}</strong>
+              <span>Estado general del registro dentro del sistema.</span>
+            </div>
           </div>
 
-          <div className="mt-6">
+          <div style={{ marginTop: "1rem" }}>
             <Field label="Observaciones">
               <textarea
                 value={data.notes}
@@ -147,26 +167,29 @@ export function ActivityEditor({
           </div>
         </div>
 
-        <aside className="rounded-[2rem] border border-[var(--line)] bg-[var(--shell)] p-8 text-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Estado General</p>
-          <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">
-            {data.status === "archived" ? "Archivado" : "Activo"}
-          </h3>
-          <div className="mt-8 space-y-4 text-sm text-white/70">
-            <p>Responsable: {data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario del sistema"}</p>
-            <p>Ultima actualizacion: {new Date(data.updated_at).toLocaleDateString()}</p>
+        <aside className="editor-side-card editor-side-card-contrast">
+          <p className="section-eyebrow">Seguimiento</p>
+          <h3 className="section-title">{data.activity_status}</h3>
+          <div className="editor-note-grid" style={{ marginTop: "1rem" }}>
+            <div className="meta-tile">
+              <strong>{data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario"}</strong>
+              <span>Responsable asignado</span>
+            </div>
+            <div className="meta-tile">
+              <strong>{new Date(data.updated_at).toLocaleDateString()}</strong>
+              <span>Ultima actualizacion registrada</span>
+            </div>
           </div>
-          <div className="mt-8 grid gap-3">
-            {editable ? (
-              <button
-                type="button"
-                onClick={handleToggleStatus}
-                className="rounded-full border border-white/[0.14] px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.08] disabled:opacity-60"
-              >
-                {data.status === "archived" ? "Reactivar" : "Archivar"}
+          <p className="section-note" style={{ marginTop: "1rem" }}>
+            Usa prioridad y estado para diferenciar rapido lo urgente de lo recurrente.
+          </p>
+          {editable ? (
+            <div style={{ marginTop: "1rem" }}>
+              <button type="button" onClick={handleToggleStatus} className="ghost-button">
+                {data.status === "archived" ? "Reactivar actividad" : "Archivar actividad"}
               </button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </aside>
       </section>
     </div>
@@ -175,7 +198,7 @@ export function ActivityEditor({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
+    <div className="page-stack" style={{ gap: "0.5rem" }}>
       <label className="label">{label}</label>
       {children}
     </div>

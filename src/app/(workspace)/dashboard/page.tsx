@@ -30,6 +30,7 @@ export default function DashboardPage() {
 
   const isEditor = profile?.role === "editor";
   const isGlobalScope = !isEditor;
+  const canCreate = profile?.role !== "viewer";
 
   useEffect(() => {
     if (!profile) return;
@@ -76,16 +77,11 @@ export default function DashboardPage() {
   }, [profiles]);
 
   const ownerLabels = useMemo(() => {
-    return new Map(filterOptions.map((entry) => [entry.id, `${entry.label} · ${entry.meta}`]));
+    return new Map(filterOptions.map((entry) => [entry.id, `${entry.label} - ${entry.meta}`]));
   }, [filterOptions]);
 
   if (!profile) {
-    return (
-      <LoadingState
-        title="Validando acceso"
-        body="Preparando el dashboard operativo."
-      />
-    );
+    return <LoadingState title="Validando acceso" body="Preparando el dashboard operativo." />;
   }
 
   if (error) {
@@ -97,68 +93,102 @@ export default function DashboardPage() {
   }
 
   if (isLoading || !summary || !snapshot) {
-    return (
-      <LoadingState
-        title="Cargando dashboard"
-        body="Consolidando indicadores, hitos y resultados."
-      />
-    );
+    return <LoadingState title="Cargando dashboard" body="Consolidando indicadores, hitos y resultados." />;
   }
 
   const projectsClosed = snapshot.projects.filter((project) => {
     const { total, done } = getProjectProgress(project);
     return total > 0 && done === total;
   }).length;
+  const totalRecords = summary.totals.documents + summary.totals.activities + summary.totals.projects;
+  const recentTimeline = buildRecentTimeline(snapshot);
+  const latestActivity = recentTimeline[0];
+  const ownerScopeLabel = isEditor
+    ? profile.full_name || profile.email
+    : ownerId
+      ? ownerLabels.get(ownerId) ?? "Responsable seleccionado"
+      : "Vista global";
 
   return (
     <div className="page-stack">
       <section className="hero-grid">
         <div className="hero-panel hero-panel-strong">
           <div className="hero-copy">
-            <p className="hero-eyebrow">Dashboard operativo</p>
-            <h1 className="hero-title">
-              {isEditor ? "Resumen de tus registros activos" : "Panorama general del sistema"}
-            </h1>
-            <p className="hero-body">
-              {isEditor
-                ? "Consulta movimiento reciente, puntos de avance y resultados de los registros bajo tu responsabilidad directa."
-                : "Supervisa documentos, actividades y proyectos con un filtro inmediato por responsable para revisar carga, avance y cierres."}
-            </p>
-          </div>
-          <div className="hero-rails">
-            <div className="stat-ribbon">
-              <StatPill label="Registros totales" value={summary.totals.documents + summary.totals.activities + summary.totals.projects} />
-              <StatPill label="Actualizados" value={summary.totals.recent} />
-              <StatPill label="Archivados" value={summary.totals.archived} />
+            <div className="page-stack">
+              <div>
+                <p className="hero-eyebrow">Centro operativo</p>
+                <h1 className="hero-title">
+                  {isEditor ? "Tus frentes activos, legibles al instante." : "Lectura ejecutiva del sistema en una sola vista."}
+                </h1>
+              </div>
+              <p className="hero-body">
+                {isEditor
+                  ? "Monitorea tu carga, el movimiento mas reciente y los puntos que exigen seguimiento sin navegar modulo por modulo."
+                  : "Filtra por responsable, identifica saturacion, revisa cierres y abre los registros con mayor impacto operativo desde el dashboard."}
+              </p>
+              <div className="stat-ribbon">
+                <StatPill label="Registros activos" value={totalRecords - summary.totals.archived} />
+                <StatPill label="Actualizados hoy" value={summary.totals.recent} />
+                <StatPill label="Archivados" value={summary.totals.archived} />
+              </div>
             </div>
-            <div className="hero-actions">
-              <Link href="/seguimientos" className="mini-button mini-button-contrast">
-                Abrir registros
-              </Link>
-              {!isEditor ? (
-                <div className="hero-filter-block">
-                  <label className="label">Coordinador / responsable</label>
-                  <select className="field field-compact" value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
-                    <option value="">Todos</option>
-                    {filterOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="meta-line">
-                    {ownerId ? `Filtro activo: ${ownerLabels.get(ownerId) ?? "Responsable seleccionado"}` : "Vista global sin filtro."}
-                  </p>
-                </div>
-              ) : (
-                <div className="hero-filter-block">
-                  <label className="label">Alcance</label>
-                  <div className="meta-tile">
-                    <strong>{profile.full_name || profile.email}</strong>
-                    <span>Solo tus registros</span>
+            <div className="compact-grid">
+              <div className="meta-tile">
+                <strong>{ownerScopeLabel}</strong>
+                <span>{isEditor ? "Alcance personal" : ownerId ? "Filtro aplicado" : "Cobertura total del workspace"}</span>
+              </div>
+              <div className="meta-tile">
+                <strong>{latestActivity ? formatDateTime(latestActivity.updated_at) : "Sin movimientos"}</strong>
+                <span>Ultima actualizacion detectada</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="hero-rails">
+            <div className="page-stack">
+              <div className="meta-grid">
+                {!isEditor ? (
+                  <div className="hero-filter-block">
+                    <label className="label">Responsable</label>
+                    <select className="field field-compact" value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+                      <option value="">Todos</option>
+                      {filterOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="meta-line">
+                      {ownerId ? `Filtro activo: ${ownerLabels.get(ownerId) ?? "Responsable seleccionado"}` : "Sin restriccion por responsable."}
+                    </p>
                   </div>
+                ) : (
+                  <div className="hero-filter-block">
+                    <label className="label">Cobertura</label>
+                    <div className="meta-tile">
+                      <strong>{profile.full_name || profile.email}</strong>
+                      <span>Solo tus registros y avances</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="compact-grid">
+                  <SummaryMini label="Documentos" value={summary.totals.documents} />
+                  <SummaryMini label="Actividades" value={summary.totals.activities} />
+                  <SummaryMini label="Proyectos" value={summary.totals.projects} />
                 </div>
-              )}
+              </div>
+            </div>
+
+            <div className="hero-actions">
+              <Link href="/seguimientos" className="mini-button">
+                Abrir hub de registros
+              </Link>
+              {canCreate ? (
+                <Link href="/seguimientos/nuevo" className="action-button">
+                  Crear nuevo registro
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>
@@ -175,10 +205,10 @@ export default function DashboardPage() {
           <section className="section-panel">
             <div className="section-heading">
               <div>
-                <p className="section-eyebrow">Hitos principales</p>
-                <h2 className="section-title">Registros destacados por avance y estado</h2>
+                <p className="section-eyebrow">Prioridad de revision</p>
+                <h2 className="section-title">Registros destacados por avance, estado y recencia</h2>
               </div>
-              <p className="section-note">Se priorizan los movimientos con mejor progreso y actividad reciente.</p>
+              <p className="section-note">Se priorizan los frentes con mejor avance o actividad reciente para acelerar lectura y decision.</p>
             </div>
 
             <div className="highlight-list">
@@ -195,27 +225,25 @@ export default function DashboardPage() {
           <section className="section-panel">
             <div className="section-heading">
               <div>
-                <p className="section-eyebrow">Flujo reciente</p>
-                <h2 className="section-title">Ultimas actualizaciones del sistema</h2>
+                <p className="section-eyebrow">Movimiento reciente</p>
+                <h2 className="section-title">Ultimas actualizaciones sobre el sistema</h2>
               </div>
-              <p className="section-note">Cronologia corta para detectar actividad reciente sin salir del dashboard.</p>
+              <p className="section-note">Linea corta de eventos para detectar actividad reciente sin salir del panorama general.</p>
             </div>
             <div className="timeline-list">
-              {buildRecentTimeline(snapshot)
-                .slice(0, 6)
-                .map((entry) => (
-                  <Link key={`${entry.kind}-${entry.id}`} href={entry.href} className="timeline-row">
-                    <div className="timeline-badge">{entry.kind === "document" ? "DOC" : entry.kind === "activity" ? "ACT" : "KAN"}</div>
-                    <div className="timeline-copy">
-                      <p className="timeline-title">{entry.title}</p>
-                      <p className="timeline-meta">
-                        {entry.status}
-                        {entry.organizational_unit ? ` · ${entry.organizational_unit}` : ""}
-                      </p>
-                    </div>
-                    <span className="timeline-time">{formatDateTime(entry.updated_at)}</span>
-                  </Link>
-                ))}
+              {recentTimeline.slice(0, 6).map((entry) => (
+                <Link key={`${entry.kind}-${entry.id}`} href={entry.href} className="timeline-row">
+                  <div className="timeline-badge">{entry.kind === "document" ? "DOC" : entry.kind === "activity" ? "ACT" : "KAN"}</div>
+                  <div className="timeline-copy">
+                    <p className="timeline-title">{entry.title}</p>
+                    <p className="timeline-meta">
+                      {entry.status}
+                      {entry.organizational_unit ? ` - ${entry.organizational_unit}` : ""}
+                    </p>
+                  </div>
+                  <span className="timeline-time">{formatDateTime(entry.updated_at)}</span>
+                </Link>
+              ))}
             </div>
           </section>
         </div>
@@ -225,8 +253,9 @@ export default function DashboardPage() {
             <div className="section-heading">
               <div>
                 <p className="section-eyebrow">Resultados</p>
-                <h2 className="section-title">Cierres y entregables</h2>
+                <h2 className="section-title">Cierres y entregables visibles</h2>
               </div>
+              <p className="section-note">Lectura rapida de completitud documental, actividades resueltas y tableros cerrados.</p>
             </div>
             <div className="outcomes-list">
               {summary.outcomes.map((outcome) => (
@@ -239,13 +268,13 @@ export default function DashboardPage() {
             <div className="section-heading">
               <div>
                 <p className="section-eyebrow">Distribucion</p>
-                <h2 className="section-title">Carga por modulo</h2>
+                <h2 className="section-title">Carga por modulo y estado</h2>
               </div>
             </div>
             <div className="stack-summary">
-              <ProgressLine label="Documentos" value={summary.totals.documents} total={summary.totals.documents + summary.totals.activities + summary.totals.projects} />
-              <ProgressLine label="Actividades" value={summary.totals.activities} total={summary.totals.documents + summary.totals.activities + summary.totals.projects} />
-              <ProgressLine label="Proyectos" value={summary.totals.projects} total={summary.totals.documents + summary.totals.activities + summary.totals.projects} />
+              <ProgressLine label="Documentos" value={summary.totals.documents} total={totalRecords} />
+              <ProgressLine label="Actividades" value={summary.totals.activities} total={totalRecords} />
+              <ProgressLine label="Proyectos" value={summary.totals.projects} total={totalRecords} />
             </div>
             <div className="divider" />
             <div className="stack-summary compact-grid">
@@ -289,8 +318,8 @@ function HighlightRow({
         </div>
         <p className="highlight-meta">
           {highlight.status}
-          {highlight.organizational_unit ? ` · ${highlight.organizational_unit}` : ""}
-          {ownerLabel ? ` · ${ownerLabel}` : ""}
+          {highlight.organizational_unit ? ` - ${highlight.organizational_unit}` : ""}
+          {ownerLabel ? ` - ${ownerLabel}` : ""}
         </p>
       </div>
       <span className="highlight-date">{formatDate(highlight.updated_at)}</span>
@@ -357,11 +386,7 @@ function AlertBox({
   children: React.ReactNode;
   tone: "error";
 }) {
-  return (
-    <div className={cn("alert-box", tone === "error" ? "alert-box-error" : "")}>
-      {children}
-    </div>
-  );
+  return <div className={cn("alert-box", tone === "error" ? "alert-box-error" : "")}>{children}</div>;
 }
 
 function LoadingState({ title, body }: { title: string; body: string }) {

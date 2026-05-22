@@ -81,10 +81,26 @@ export default function RecordsHubPage() {
   }, [snapshot]);
 
   const canCreate = profile?.role !== "viewer";
+  const totalRecords = snapshot ? snapshot.documents.length + snapshot.activities.length + snapshot.projects.length : 0;
   const tabs = [
-    { id: "documents" as const, label: "Documentos", total: activeTotals.documents },
-    { id: "activities" as const, label: "Actividades", total: activeTotals.activities },
-    { id: "projects" as const, label: "Proyectos", total: activeTotals.projects },
+    {
+      id: "documents" as const,
+      label: "Documentos",
+      total: activeTotals.documents,
+      note: "Control documental y avance por etapa.",
+    },
+    {
+      id: "activities" as const,
+      label: "Actividades",
+      total: activeTotals.activities,
+      note: "Seguimiento recurrente con prioridad y estado.",
+    },
+    {
+      id: "projects" as const,
+      label: "Proyectos",
+      total: activeTotals.projects,
+      note: "Tableros kanban y carga por tareas.",
+    },
   ];
 
   function handleTabChange(tab: RecordTab) {
@@ -108,7 +124,7 @@ export default function RecordsHubPage() {
       <div className="page-stack">
         <div className="section-panel loading-panel">
           <p className="section-eyebrow">Cargando registros</p>
-          <p className="section-note">Preparando workspace.</p>
+          <p className="section-note">Preparando el workspace operativo.</p>
         </div>
       </div>
     );
@@ -118,14 +134,17 @@ export default function RecordsHubPage() {
     <div className="page-stack">
       <section className="records-topbar">
         <div className="records-topbar-copy">
-          <p className="section-eyebrow">Registros</p>
-          <h1 className="records-page-title">Superficie operativa</h1>
+          <p className="section-eyebrow">Hub de registros</p>
+          <h1 className="records-page-title">Consulta transversal por tipo, estado y contexto</h1>
+          <p className="section-note">
+            Navega entre modulos sin perder contexto, filtra por estado y abre el registro correcto desde una superficie unica.
+          </p>
         </div>
         <div className="records-topbar-stats">
           <SummaryMini label="Documentos" value={activeTotals.documents} />
           <SummaryMini label="Actividades" value={activeTotals.activities} />
           <SummaryMini label="Proyectos" value={activeTotals.projects} />
-          <SummaryMini label="Total" value={snapshot.documents.length + snapshot.activities.length + snapshot.projects.length} />
+          <SummaryMini label="Total" value={totalRecords} />
         </div>
       </section>
 
@@ -133,13 +152,16 @@ export default function RecordsHubPage() {
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            id={`tab-${tab.id}`}
             type="button"
-            className={cn("records-switcher-tab", activeTab === tab.id ? "records-switcher-tab-active" : "")}
+            className={cn("records-tab", activeTab === tab.id ? "records-tab-active" : "")}
             onClick={() => handleTabChange(tab.id)}
             aria-pressed={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
           >
-            <span>{tab.label}</span>
-            <strong>{tab.total}</strong>
+            <span className="records-tab-label">{tab.label}</span>
+            <span className="records-tab-count">{tab.total}</span>
+            <span className="records-tab-note">{tab.note}</span>
           </button>
         ))}
       </section>
@@ -190,7 +212,7 @@ export default function RecordsHubPage() {
             )}
             renderSummary={(items) => (
               <>
-                <SummaryMini label="Proceso" value={items.filter((item) => item.activity_status === "En Proceso").length} />
+                <SummaryMini label="En proceso" value={items.filter((item) => item.activity_status === "En Proceso").length} />
                 <SummaryMini label="Completadas" value={items.filter((item) => item.activity_status === "Completado").length} />
               </>
             )}
@@ -305,27 +327,46 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
         </div>
       </div>
 
-      <div className="module-toolbar module-toolbar-compact">
+      <div className="records-filterbar">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="field field-compact"
           placeholder={`Buscar en ${title.toLowerCase()}`}
+          aria-label={`Buscar en ${title.toLowerCase()}`}
         />
-        <select
-          value={archived}
-          onChange={(event) => setArchived(event.target.value as ArchiveFilter)}
-          className="field field-compact"
-        >
-          <option value="active">Activos</option>
-          <option value="archived">Archivados</option>
-          <option value="all">Todos</option>
-        </select>
+        <div className="segmented-control" aria-label={`Filtro por estado para ${title.toLowerCase()}`}>
+          <button
+            type="button"
+            className={cn("segmented-button", archived === "active" ? "segmented-button-active" : "")}
+            onClick={() => setArchived("active")}
+          >
+            Activos
+          </button>
+          <button
+            type="button"
+            className={cn("segmented-button", archived === "archived" ? "segmented-button-active" : "")}
+            onClick={() => setArchived("archived")}
+          >
+            Archivados
+          </button>
+          <button
+            type="button"
+            className={cn("segmented-button", archived === "all" ? "segmented-button-active" : "")}
+            onClick={() => setArchived("all")}
+          >
+            Todos
+          </button>
+        </div>
+        <div className="summary-mini">
+          <span>Filtro actual</span>
+          <strong>{archived === "active" ? "Activos" : archived === "archived" ? "Archivados" : "Todos"}</strong>
+        </div>
       </div>
 
       <div className="record-list">
         {visibleItems.length === 0 ? (
-          <div className="empty-strip">No hay registros para este filtro.</div>
+          <div className="empty-strip">No hay registros para esta combinacion de filtros.</div>
         ) : (
           visibleItems.map((item) => (
             <article key={item.id} className="record-row">
@@ -333,7 +374,7 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
                 <div>
                   <p className="record-title">{item.title}</p>
                   <p className="record-meta">
-                    {item.organizational_unit || "Sin unidad"} · {formatDate(item.updated_at)}
+                    {item.organizational_unit || "Sin unidad"} - {formatDate(item.updated_at)}
                   </p>
                 </div>
                 {renderStatus(item)}
@@ -343,7 +384,7 @@ function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTr
                   {item.status === "archived" ? "Archivado" : "Activo"}
                 </span>
                 <Link href={getHref(item)} className="text-link">
-                  Abrir
+                  Abrir detalle
                 </Link>
               </div>
             </article>

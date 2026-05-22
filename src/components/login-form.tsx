@@ -36,9 +36,9 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Correo</label>
+    <form onSubmit={handleSubmit} className="page-stack">
+      <div className="page-stack" style={{ gap: "0.5rem" }}>
+        <label className="label">Correo</label>
         <input
           type="email"
           value={email}
@@ -48,8 +48,8 @@ export function LoginForm() {
           placeholder="nombre@empresa.com"
         />
       </div>
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Contrasena</label>
+      <div className="page-stack" style={{ gap: "0.5rem" }}>
+        <label className="label">Contrasena</label>
         <input
           type="password"
           value={password}
@@ -59,14 +59,18 @@ export function LoginForm() {
           placeholder="********"
         />
       </div>
-      {error ? (
-        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</p>
-      ) : null}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="action-button w-full disabled:opacity-60"
-      >
+      {error ? <div className="alert-box alert-box-error">{error}</div> : null}
+      <div className="compact-grid">
+        <div className="meta-tile">
+          <strong>Acceso seguro</strong>
+          <span>La sesion se valida contra tu perfil activo.</span>
+        </div>
+        <div className="meta-tile">
+          <strong>Permisos por rol</strong>
+          <span>La experiencia cambia segun capacidades del usuario.</span>
+        </div>
+      </div>
+      <button type="submit" disabled={isPending} className="action-button w-full disabled:opacity-60">
         {isPending ? "Ingresando..." : "Entrar al sistema"}
       </button>
     </form>

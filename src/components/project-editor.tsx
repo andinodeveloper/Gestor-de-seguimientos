@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuthContext } from "@/components/auth-provider";
 import { PROJECT_COLUMNS } from "@/lib/constants";
@@ -69,19 +69,44 @@ export function ProjectEditor({
     return data.tasks.filter((task) => task.column_key === key).sort((a, b) => a.sort_order - b.sort_order);
   }
 
+  const progressStats = useMemo(() => {
+    const total = data.tasks.length;
+    const done = data.tasks.filter((task) => task.column_key === "done").length;
+    const doing = data.tasks.filter((task) => task.column_key === "doing").length;
+    const progress = total === 0 ? 0 : Math.round((done / total) * 100);
+
+    return { total, done, doing, progress };
+  }, [data.tasks]);
+
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[1.55fr_0.85fr]">
-        <div className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Proyecto / Kanban</p>
-              <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-[var(--ink)]">{data.title}</h3>
+    <div className="page-stack">
+      <section className="editor-layout">
+        <div className="editor-main-card">
+          <div className="section-heading">
+            <div>
+              <p className="section-eyebrow">Proyecto / kanban</p>
+              <h2 className="section-title">{data.title}</h2>
+              <p className="section-note">Administra el tablero, reordena tareas y conserva una lectura clara del avance del proyecto.</p>
             </div>
             <SavePill state={saveState} />
           </div>
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <div className="editor-kpi-grid" style={{ marginTop: "1rem" }}>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Avance</span>
+              <strong>{progressStats.progress}%</strong>
+            </div>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">En ejecucion</span>
+              <strong>{progressStats.doing}</strong>
+            </div>
+            <div className="editor-kpi">
+              <span className="editor-kpi-label">Tareas totales</span>
+              <strong>{progressStats.total}</strong>
+            </div>
+          </div>
+
+          <div className="editor-form-grid" style={{ marginTop: "1rem" }}>
             <Field label="Titulo">
               <input
                 value={data.title}
@@ -101,32 +126,42 @@ export function ProjectEditor({
           </div>
         </div>
 
-        <aside className="rounded-[2rem] border border-[var(--line)] bg-[var(--shell)] p-8 text-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Estado General</p>
-          <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">
-            {data.status === "archived" ? "Archivado" : "Activo"}
-          </h3>
-          <div className="mt-8 space-y-4 text-sm text-white/70">
-            <p>Responsable: {data.owner_id === profile?.id ? "Tu usuario" : "Otro usuario del sistema"}</p>
-            <p>Total de tareas: {data.tasks.length}</p>
-            <p>Ultima actualizacion: {new Date(data.updated_at).toLocaleDateString()}</p>
+        <aside className="editor-side-card editor-side-card-contrast">
+          <p className="section-eyebrow">Estado general</p>
+          <h3 className="section-title">{data.status === "archived" ? "Tablero archivado" : "Tablero activo"}</h3>
+          <div className="editor-note-grid" style={{ marginTop: "1rem" }}>
+            <div className="meta-tile">
+              <strong>{progressStats.done}</strong>
+              <span>Tareas finalizadas</span>
+            </div>
+            <div className="meta-tile">
+              <strong>{new Date(data.updated_at).toLocaleDateString()}</strong>
+              <span>Ultima actualizacion registrada</span>
+            </div>
           </div>
-          <div className="mt-8 grid gap-3">
-            {editable ? (
-              <button
-                type="button"
-                onClick={handleToggleStatus}
-                className="rounded-full border border-white/[0.14] px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.08] disabled:opacity-60"
-              >
-                {data.status === "archived" ? "Reactivar" : "Archivar"}
+          <p className="section-note" style={{ marginTop: "1rem" }}>
+            Arrastra tareas entre columnas para reflejar el estado real del proyecto.
+          </p>
+          {editable ? (
+            <div style={{ marginTop: "1rem" }}>
+              <button type="button" onClick={handleToggleStatus} className="ghost-button">
+                {data.status === "archived" ? "Reactivar proyecto" : "Archivar proyecto"}
               </button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </aside>
       </section>
 
-      <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface-2)] p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-        <div className="grid gap-6 xl:grid-cols-3">
+      <section className="section-panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-eyebrow">Tablero</p>
+            <h3 className="section-title">Flujo por columnas</h3>
+            <p className="section-note">La interfaz prioriza lectura rapida, conteo visible y edicion directa del contenido.</p>
+          </div>
+        </div>
+
+        <div className="editor-board-grid">
           {PROJECT_COLUMNS.map((column) => {
             const columnTasks = getTasksByColumn(column.key);
             return (
@@ -171,17 +206,13 @@ export function ProjectEditor({
                   });
                   draggedRef.current = null;
                 }}
-                className="rounded-[1.4rem] border border-[var(--line)] bg-white p-4"
+                className="editor-board-column"
               >
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
-                    {column.label}
-                  </p>
-                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-                    {columnTasks.length}
-                  </span>
+                <div className="editor-board-head">
+                  <p className="label">{column.label}</p>
+                  <span className="editor-board-count">{columnTasks.length}</span>
                 </div>
-                <div className="mt-4 space-y-3">
+                <div className="page-stack" style={{ marginTop: "1rem", gap: "0.75rem" }}>
                   {columnTasks.map((task, taskIndex) => (
                     <div
                       key={task.id}
@@ -189,10 +220,7 @@ export function ProjectEditor({
                       onDragStart={() => {
                         draggedRef.current = { column: column.key, taskIndex };
                       }}
-                      className={cn(
-                        "rounded-[1.2rem] border border-[var(--line)] bg-[var(--surface)] p-4",
-                        editable ? "cursor-move" : "",
-                      )}
+                      className={cn("editor-task-card", editable ? "cursor-move" : "")}
                     >
                       <textarea
                         value={task.content}
@@ -201,16 +229,14 @@ export function ProjectEditor({
                           setData((current) => ({
                             ...current,
                             tasks: current.tasks.map((currentTask) =>
-                              currentTask.id === task.id
-                                ? { ...currentTask, content: e.target.value }
-                                : currentTask,
+                              currentTask.id === task.id ? { ...currentTask, content: e.target.value } : currentTask,
                             ),
                           }));
                         }}
-                        className="min-h-24 w-full resize-y bg-transparent text-sm leading-6 text-[var(--ink)] outline-none"
+                        className="editor-task-textarea"
                       />
                       {editable ? (
-                        <div className="mt-3 flex justify-end">
+                        <div className="module-footer" style={{ marginTop: "0.75rem" }}>
                           <button
                             type="button"
                             onClick={() => {
@@ -219,7 +245,7 @@ export function ProjectEditor({
                                 tasks: current.tasks.filter((currentTask) => currentTask.id !== task.id),
                               }));
                             }}
-                            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)] transition hover:text-rose-700"
+                            className="text-link"
                           >
                             Eliminar
                           </button>
@@ -246,7 +272,8 @@ export function ProjectEditor({
                         ],
                       }));
                     }}
-                    className="mt-4 w-full rounded-full border border-dashed border-[var(--line-strong)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)] transition hover:bg-[var(--surface-2)]"
+                    className="ghost-button"
+                    style={{ marginTop: "1rem", width: "100%" }}
                   >
                     Agregar tarea
                   </button>
@@ -262,7 +289,7 @@ export function ProjectEditor({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
+    <div className="page-stack" style={{ gap: "0.5rem" }}>
       <label className="label">{label}</label>
       {children}
     </div>

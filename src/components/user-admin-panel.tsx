@@ -85,69 +85,79 @@ export function UserAdminPanel({ initialProfiles }: { initialProfiles: Profile[]
 
   return (
     <div className="page-stack">
-      <section className="section-panel">
-        <div className="max-w-2xl">
-          <p className="section-eyebrow">Alta</p>
-          <h3 className="section-title">Crear o invitar usuario</h3>
-          <p className="section-note">
-            Si ingresas contrasena, el usuario queda creado de inmediato. Si la dejas vacia, la app intentara enviar una invitacion con la funcion segura de Supabase.
-          </p>
+      <section className="creation-grid">
+        <div className="section-panel">
+          <div>
+            <p className="section-eyebrow">Alta</p>
+            <h3 className="section-title">Crear o invitar usuario</h3>
+            <p className="section-note">
+              Si defines contrasena, el usuario queda creado de inmediato. Si la dejas vacia, la app intentara enviar una invitacion segura.
+            </p>
+          </div>
+          <form onSubmit={handleCreate} className="page-stack" style={{ marginTop: "1rem" }}>
+            <div className="editor-form-grid">
+              <Field label="Correo">
+                <input
+                  value={draft.email}
+                  onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+                  className="field"
+                  type="email"
+                  required
+                />
+              </Field>
+              <Field label="Nombre completo">
+                <input
+                  value={draft.fullName}
+                  onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
+                  className="field"
+                  required
+                />
+              </Field>
+              <Field label="Rol">
+                <select
+                  value={draft.role}
+                  onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as Role }))}
+                  className="field"
+                >
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Contrasena temporal">
+                <input
+                  value={draft.password}
+                  onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
+                  className="field"
+                  placeholder="Opcional"
+                />
+              </Field>
+            </div>
+            <div className="module-footer">
+              <button type="submit" disabled={isPending} className="action-button disabled:opacity-60">
+                {isPending ? "Guardando..." : "Crear usuario"}
+              </button>
+            </div>
+          </form>
         </div>
-        <form onSubmit={handleCreate} className="mt-6 grid gap-4 lg:grid-cols-2">
-          <div className="space-y-2">
-            <label className="label">Correo</label>
-            <input
-              value={draft.email}
-              onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
-              className="field"
-              type="email"
-              required
-            />
+
+        <aside className="editor-side-card editor-side-card-contrast">
+          <p className="section-eyebrow">Roles</p>
+          <div className="editor-note-grid" style={{ marginTop: "1rem" }}>
+            {ROLE_OPTIONS.map((option) => (
+              <div key={option.value} className="meta-tile">
+                <strong>{option.label}</strong>
+                <span>{option.note}</span>
+              </div>
+            ))}
           </div>
-          <div className="space-y-2">
-            <label className="label">Nombre completo</label>
-            <input
-              value={draft.fullName}
-              onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
-              className="field"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="label">Rol</label>
-            <select
-              value={draft.role}
-              onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as Role }))}
-              className="field"
-            >
-              {ROLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="label">Contrasena temporal</label>
-            <input
-              value={draft.password}
-              onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
-              className="field"
-              placeholder="Opcional"
-            />
-          </div>
-          <div className="flex items-center justify-between gap-4 lg:col-span-2">
-            <div className="text-sm text-[var(--muted)]">El rol puede modificarse despues desde la tabla.</div>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="mini-button disabled:opacity-60"
-            >
-              {isPending ? "Guardando..." : "Crear usuario"}
-            </button>
-          </div>
-        </form>
+        </aside>
       </section>
+
+      {message ? <div className="alert-box alert-box-success">{message}</div> : null}
+      {error ? <div className="alert-box alert-box-error">{error}</div> : null}
 
       <section className="section-panel">
         <div className="section-heading">
@@ -155,21 +165,20 @@ export function UserAdminPanel({ initialProfiles }: { initialProfiles: Profile[]
             <p className="section-eyebrow">Control</p>
             <h3 className="section-title">Usuarios registrados</h3>
           </div>
-          <div className="text-right text-sm text-[var(--muted)]">{profiles.length} usuarios</div>
+          <div className="module-meta">
+            <span>{profiles.length} usuarios</span>
+          </div>
         </div>
 
-        {message ? <p className="mt-5 text-sm text-emerald-700">{message}</p> : null}
-        {error ? <p className="mt-5 text-sm text-rose-700">{error}</p> : null}
-
-        <div className="mt-6 overflow-x-auto rounded-[1.2rem] border border-[var(--line)] bg-white/70">
-          <div className="grid min-w-[820px] grid-cols-[1.3fr_1.2fr_0.8fr_0.7fr_0.9fr] gap-4 border-b border-[var(--line)] bg-[var(--surface-2)] px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+        <div className="table-shell" style={{ marginTop: "1rem", overflowX: "auto" }}>
+          <div className="table-header">
             <span>Usuario</span>
             <span>Nombre</span>
             <span>Rol</span>
             <span>Activo</span>
             <span>Actualizado</span>
           </div>
-          <div className="divide-y divide-[var(--line)]">
+          <div>
             {profiles.map((entry) => (
               <EditableUserRow
                 key={entry.id}
@@ -200,8 +209,8 @@ function EditableUserRow({
   const [isActive, setIsActive] = useState(profile.is_active);
 
   return (
-    <div className="grid min-w-[820px] grid-cols-[1.3fr_1.2fr_0.8fr_0.7fr_0.9fr] gap-4 px-5 py-4">
-      <div className="self-center text-sm text-[var(--ink)]">{profile.email}</div>
+    <div className="table-row">
+      <div className="text-sm text-[var(--ink)]">{profile.email}</div>
       <input value={fullName} onChange={(event) => setFullName(event.target.value)} className="field field-compact text-sm" />
       <select value={role} onChange={(event) => setRole(event.target.value as Role)} className="field field-compact text-sm">
         {ROLE_OPTIONS.map((option) => (
@@ -210,20 +219,25 @@ function EditableUserRow({
           </option>
         ))}
       </select>
-      <label className="flex items-center justify-center gap-3 self-center text-sm text-[var(--ink)]">
+      <label className="status-inline self-center text-sm text-[var(--ink)]">
         <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
         {isActive ? "Si" : "No"}
       </label>
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs text-[var(--muted)]">{formatDateTime(profile.updated_at)}</span>
-        <button
-          type="button"
-          onClick={() => onSave({ full_name: fullName, role, is_active: isActive })}
-          className="ghost-button"
-        >
+        <button type="button" onClick={() => onSave({ full_name: fullName, role, is_active: isActive })} className="ghost-button">
           Guardar
         </button>
       </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="page-stack" style={{ gap: "0.5rem" }}>
+      <label className="label">{label}</label>
+      {children}
     </div>
   );
 }
