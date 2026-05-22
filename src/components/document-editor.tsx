@@ -24,6 +24,20 @@ export function DocumentEditor({
   const [data, setData] = useState(document);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const firstRun = useRef(true);
+  const skipAutosaveRef = useRef(false);
+  const latestDataRef = useRef(document);
+  const pendingSaveRef = useRef(false);
+  const saveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    latestDataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    skipAutosaveRef.current = true;
+    latestDataRef.current = document;
+    setData(document);
+  }, [document]);
 
   useEffect(() => {
     if (!editable || !profile) return;
@@ -31,17 +45,42 @@ export function DocumentEditor({
       firstRun.current = false;
       return;
     }
+    if (skipAutosaveRef.current) {
+      skipAutosaveRef.current = false;
+      return;
+    }
 
     setSaveState((current) => (current === "saving" ? current : "idle"));
     const timer = window.setTimeout(() => {
       startTransition(async () => {
-        try {
-          setSaveState("saving");
-          const updated = await updateDocument(document.id, profile.id, data);
-          setData(updated);
-          setSaveState("saved");
-        } catch {
-          setSaveState("error");
+        pendingSaveRef.current = true;
+        if (saveInFlightRef.current) {
+          return;
+        }
+
+        while (pendingSaveRef.current) {
+          pendingSaveRef.current = false;
+          saveInFlightRef.current = true;
+
+          try {
+            setSaveState("saving");
+            const snapshot = latestDataRef.current;
+            const updated = await updateDocument(document.id, profile.id, snapshot);
+            const hasPendingChanges = pendingSaveRef.current || latestDataRef.current !== snapshot;
+
+            if (!hasPendingChanges) {
+              skipAutosaveRef.current = true;
+              latestDataRef.current = updated;
+              setData(updated);
+              setSaveState("saved");
+            }
+          } catch {
+            if (!pendingSaveRef.current) {
+              setSaveState("error");
+            }
+          } finally {
+            saveInFlightRef.current = false;
+          }
         }
       });
     }, 700);
@@ -51,10 +90,13 @@ export function DocumentEditor({
 
   async function handleToggleStatus() {
     if (!editable || !profile) return;
+    pendingSaveRef.current = false;
     setSaveState("saving");
     try {
       const nextStatus = data.status === "archived" ? "active" : "archived";
       const updated = await updateDocument(document.id, profile.id, { ...data, status: nextStatus });
+      skipAutosaveRef.current = true;
+      latestDataRef.current = updated;
       setData(updated);
       setSaveState("saved");
     } catch {

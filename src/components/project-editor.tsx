@@ -24,7 +24,22 @@ export function ProjectEditor({
   const [data, setData] = useState(project);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const firstRun = useRef(true);
-  const draggedRef = useRef<{ column: ProjectColumnKey; taskIndex: number } | null>(null);
+  const skipAutosaveRef = useRef(false);
+  const latestDataRef = useRef(project);
+  const pendingSaveRef = useRef(false);
+  const saveInFlightRef = useRef(false);
+  const draggedRef = useRef<{ column: ProjectColumnKey; taskId: string } | null>(null);
+  const canEditProject = editable && data.status !== "archived";
+
+  useEffect(() => {
+    latestDataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    skipAutosaveRef.current = true;
+    latestDataRef.current = project;
+    setData(project);
+  }, [project]);
 
   useEffect(() => {
     if (!editable || !profile) return;
@@ -32,19 +47,45 @@ export function ProjectEditor({
       firstRun.current = false;
       return;
     }
+    if (skipAutosaveRef.current) {
+      skipAutosaveRef.current = false;
+      return;
+    }
 
     setSaveState((current) => (current === "saving" ? current : "idle"));
     const timer = window.setTimeout(() => {
       startTransition(async () => {
-        try {
-          setSaveState("saving");
-          const updated = await updateProject(project.id, profile.id, data);
-          if (updated) {
-            setData(updated);
-            setSaveState("saved");
+        pendingSaveRef.current = true;
+        if (saveInFlightRef.current) {
+          return;
+        }
+
+        while (pendingSaveRef.current) {
+          pendingSaveRef.current = false;
+          saveInFlightRef.current = true;
+
+          try {
+            setSaveState("saving");
+            const snapshot = latestDataRef.current;
+            const updated = await updateProject(project.id, profile.id, snapshot);
+            const hasPendingChanges = pendingSaveRef.current || latestDataRef.current !== snapshot;
+
+            if (!hasPendingChanges && updated) {
+              skipAutosaveRef.current = true;
+              latestDataRef.current = updated;
+              setData(updated);
+            }
+
+            if (!hasPendingChanges) {
+              setSaveState("saved");
+            }
+          } catch {
+            if (!pendingSaveRef.current) {
+              setSaveState("error");
+            }
+          } finally {
+            saveInFlightRef.current = false;
           }
-        } catch {
-          setSaveState("error");
         }
       });
     }, 700);
@@ -54,11 +95,16 @@ export function ProjectEditor({
 
   async function handleToggleStatus() {
     if (!editable || !profile) return;
+    pendingSaveRef.current = false;
     setSaveState("saving");
     try {
       const nextStatus = data.status === "archived" ? "active" : "archived";
       const updated = await updateProject(project.id, profile.id, { ...data, status: nextStatus });
-      if (updated) setData(updated);
+      if (updated) {
+        skipAutosaveRef.current = true;
+        latestDataRef.current = updated;
+        setData(updated);
+      }
       setSaveState("saved");
     } catch {
       setSaveState("error");
@@ -112,7 +158,7 @@ export function ProjectEditor({
                 value={data.title}
                 onChange={(e) => setData((current) => ({ ...current, title: e.target.value }))}
                 className="field"
-                disabled={!editable}
+                disabled={!canEditProject}
               />
             </Field>
             <Field label="Unidad organizativa">
@@ -120,7 +166,7 @@ export function ProjectEditor({
                 value={data.organizational_unit}
                 onChange={(e) => setData((current) => ({ ...current, organizational_unit: e.target.value }))}
                 className="field"
-                disabled={!editable}
+                disabled={!canEditProject}
               />
             </Field>
           </div>
@@ -169,6 +215,7 @@ export function ProjectEditor({
                 key={column.key}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => {
+                  if (!canEditProject) return;
                   const dragged = draggedRef.current;
                   if (!dragged) return;
 
@@ -177,7 +224,10 @@ export function ProjectEditor({
                     const originTasks = allTasks
                       .filter((task) => task.column_key === dragged.column)
                       .sort((a, b) => a.sort_order - b.sort_order);
-                    const [moved] = originTasks.splice(dragged.taskIndex, 1);
+                    const originIndex = originTasks.findIndex((task) => task.id === dragged.taskId);
+                    if (originIndex === -1) return current;
+
+                    const [moved] = originTasks.splice(originIndex, 1);
 
                     if (!moved) return current;
 
@@ -213,18 +263,26 @@ export function ProjectEditor({
                   <span className="editor-board-count">{columnTasks.length}</span>
                 </div>
                 <div className="page-stack" style={{ marginTop: "1rem", gap: "0.75rem" }}>
-                  {columnTasks.map((task, taskIndex) => (
-                    <div
-                      key={task.id}
-                      draggable={editable}
-                      onDragStart={() => {
-                        draggedRef.current = { column: column.key, taskIndex };
-                      }}
-                      className={cn("editor-task-card", editable ? "cursor-move" : "")}
-                    >
+                  {columnTasks.map((task) => (
+                    <div key={task.id} className="editor-task-card">
+                      {canEditProject ? (
+                        <div
+                          draggable
+                          onDragStart={() => {
+                            draggedRef.current = { column: column.key, taskId: task.id };
+                          }}
+                          onDragEnd={() => {
+                            draggedRef.current = null;
+                          }}
+                          className="editor-task-handle"
+                        >
+                          Mover
+                        </div>
+                      ) : null}
                       <textarea
                         value={task.content}
-                        disabled={!editable}
+                        draggable={false}
+                        disabled={!canEditProject}
                         onChange={(e) => {
                           setData((current) => ({
                             ...current,
@@ -235,7 +293,7 @@ export function ProjectEditor({
                         }}
                         className="editor-task-textarea"
                       />
-                      {editable ? (
+                      {canEditProject ? (
                         <div className="module-footer" style={{ marginTop: "0.75rem" }}>
                           <button
                             type="button"
@@ -254,7 +312,7 @@ export function ProjectEditor({
                     </div>
                   ))}
                 </div>
-                {editable ? (
+                {canEditProject ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -267,7 +325,7 @@ export function ProjectEditor({
                             project_id: current.id,
                             column_key: column.key,
                             content: "Nueva tarea",
-                            sort_order: columnTasks.length,
+                            sort_order: current.tasks.filter((task) => task.column_key === column.key).length,
                           },
                         ],
                       }));
