@@ -10,6 +10,8 @@ export type ActivityStatus = "Pendiente" | "En Proceso" | "Completado";
 
 export type ProjectColumnKey = "todo" | "doing" | "done";
 
+export type RecordKind = "document" | "activity" | "project";
+
 export type DocumentStatus = {
   code: string;
   label: string;
@@ -61,6 +63,56 @@ export type ProjectTask = {
   column_key: ProjectColumnKey;
   content: string;
   sort_order: number;
+};
+
+export type OperationalSnapshot = {
+  documents: DocumentTracking[];
+  activities: ActivityTracking[];
+  projects: ProjectTracking[];
+};
+
+export type DashboardMetric = {
+  id: string;
+  label: string;
+  value: number;
+  note: string;
+};
+
+export type DashboardHighlight = {
+  id: string;
+  kind: RecordKind;
+  title: string;
+  owner_id: string;
+  organizational_unit: string;
+  status: string;
+  progress: number;
+  updated_at: string;
+  href: string;
+};
+
+export type DashboardOutcome = {
+  id: string;
+  label: string;
+  value: number;
+  note: string;
+};
+
+export type DashboardScopeState = {
+  mode: "mine" | "global";
+  ownerId: string | null;
+};
+
+export type DashboardSummary = {
+  metrics: DashboardMetric[];
+  highlights: DashboardHighlight[];
+  outcomes: DashboardOutcome[];
+  totals: {
+    documents: number;
+    activities: number;
+    projects: number;
+    archived: number;
+    recent: number;
+  };
 };
 
 export type AuditEvent = {

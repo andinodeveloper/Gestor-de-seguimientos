@@ -31,7 +31,7 @@ export function LoginForm() {
     }
 
     startTransition(() => {
-      router.replace("/seguimientos");
+      router.replace("/dashboard");
     });
   }
 
@@ -65,7 +65,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-full bg-[var(--accent)] px-5 py-4 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-60"
+        className="action-button w-full disabled:opacity-60"
       >
         {isPending ? "Ingresando..." : "Entrar al sistema"}
       </button>

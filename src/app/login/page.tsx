@@ -19,7 +19,7 @@ function LoginPageContent() {
     }
 
     if (session && profile && !blocked) {
-      router.replace("/seguimientos");
+      router.replace("/dashboard");
       return;
     }
 
@@ -33,17 +33,17 @@ function LoginPageContent() {
   }
 
   return (
-    <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 xl:grid-cols-[1.2fr_0.8fr]">
+    <div className="mx-auto grid min-h-screen max-w-[1800px] grid-cols-1 xl:grid-cols-[1.08fr_0.92fr]">
       <section className="relative overflow-hidden bg-[var(--shell)] px-8 py-12 text-white md:px-14 xl:px-20 xl:py-16">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(180,255,219,0.2),transparent_34%),linear-gradient(160deg,#102117_0%,#183322_70%,#102117_100%)]" />
-        <div className="relative flex h-full flex-col justify-between">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(180,255,219,0.18),transparent_30%),linear-gradient(160deg,#121916_0%,#19251f_68%,#121916_100%)]" />
+        <div className="relative flex h-full flex-col justify-between gap-10">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/50">Plataforma interna</p>
-            <h1 className="mt-6 max-w-2xl text-6xl font-semibold tracking-[-0.07em]">
+            <h1 className="mt-6 max-w-3xl text-[clamp(3rem,7vw,6.5rem)] font-semibold tracking-[-0.08em] leading-[0.92]">
               Registros operativos con responsables directos y control por rol.
             </h1>
-            <p className="mt-6 max-w-xl text-base leading-8 text-white/70">
-              Reemplaza el tablero estatico por una aplicacion colaborativa: historial real, usuarios, archivado y exportes consistentes desde Supabase.
+            <p className="mt-6 max-w-2xl text-[0.98rem] leading-8 text-white/72">
+              Un workspace de seguimiento sobrio y legible para concentrar avance documental, operacion diaria y proyectos tipo kanban con persistencia real.
             </p>
           </div>
 
@@ -53,7 +53,7 @@ function LoginPageContent() {
               ["Persistencia", "Documentos, actividades y proyectos guardados en base real."],
               ["Exportes", "PPTX y backup ZIP generados desde el estado persistido."],
             ].map(([title, body]) => (
-              <div key={title} className="rounded-[1.7rem] border border-white/10 bg-white/[0.06] p-5 backdrop-blur">
+              <div key={title} className="rounded-[1.35rem] border border-white/10 bg-white/[0.05] p-5 backdrop-blur">
                 <p className="text-sm font-semibold">{title}</p>
                 <p className="mt-3 text-sm leading-7 text-white/[0.66]">{body}</p>
               </div>
@@ -63,7 +63,7 @@ function LoginPageContent() {
       </section>
 
       <section className="flex items-center px-6 py-12 md:px-12 xl:px-16">
-        <div className="w-full rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.08)] md:p-10">
+        <div className="w-full rounded-[1.9rem] border border-[var(--line)] bg-[var(--panel)] p-8 shadow-[var(--shadow-strong)] md:p-10">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Acceso</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-[var(--ink)]">Iniciar sesion</h2>
           <p className="mt-4 text-sm leading-7 text-[var(--muted)]">

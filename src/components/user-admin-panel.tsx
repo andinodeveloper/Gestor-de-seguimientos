@@ -84,16 +84,16 @@ export function UserAdminPanel({ initialProfiles }: { initialProfiles: Profile[]
   }
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
+    <div className="page-stack">
+      <section className="section-panel">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Alta</p>
-          <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-[var(--ink)]">Crear o invitar usuario</h3>
-          <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+          <p className="section-eyebrow">Alta</p>
+          <h3 className="section-title">Crear o invitar usuario</h3>
+          <p className="section-note">
             Si ingresas contrasena, el usuario queda creado de inmediato. Si la dejas vacia, la app intentara enviar una invitacion con la funcion segura de Supabase.
           </p>
         </div>
-        <form onSubmit={handleCreate} className="mt-8 grid gap-5 lg:grid-cols-2">
+        <form onSubmit={handleCreate} className="mt-6 grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
             <label className="label">Correo</label>
             <input
@@ -141,7 +141,7 @@ export function UserAdminPanel({ initialProfiles }: { initialProfiles: Profile[]
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-60"
+              className="mini-button disabled:opacity-60"
             >
               {isPending ? "Guardando..." : "Crear usuario"}
             </button>
@@ -149,11 +149,11 @@ export function UserAdminPanel({ initialProfiles }: { initialProfiles: Profile[]
         </form>
       </section>
 
-      <section className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-        <div className="flex items-end justify-between gap-6">
+      <section className="section-panel">
+        <div className="section-heading">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Control</p>
-            <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-[var(--ink)]">Usuarios registrados</h3>
+            <p className="section-eyebrow">Control</p>
+            <h3 className="section-title">Usuarios registrados</h3>
           </div>
           <div className="text-right text-sm text-[var(--muted)]">{profiles.length} usuarios</div>
         </div>
@@ -161,8 +161,8 @@ export function UserAdminPanel({ initialProfiles }: { initialProfiles: Profile[]
         {message ? <p className="mt-5 text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="mt-5 text-sm text-rose-700">{error}</p> : null}
 
-        <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-[var(--line)]">
-          <div className="grid grid-cols-[1.3fr_1.2fr_0.8fr_0.7fr_0.9fr] gap-4 border-b border-[var(--line)] bg-[var(--surface-2)] px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+        <div className="mt-6 overflow-x-auto rounded-[1.2rem] border border-[var(--line)] bg-white/70">
+          <div className="grid min-w-[820px] grid-cols-[1.3fr_1.2fr_0.8fr_0.7fr_0.9fr] gap-4 border-b border-[var(--line)] bg-[var(--surface-2)] px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
             <span>Usuario</span>
             <span>Nombre</span>
             <span>Rol</span>
@@ -200,10 +200,10 @@ function EditableUserRow({
   const [isActive, setIsActive] = useState(profile.is_active);
 
   return (
-    <div className="grid grid-cols-[1.3fr_1.2fr_0.8fr_0.7fr_0.9fr] gap-4 px-5 py-4">
+    <div className="grid min-w-[820px] grid-cols-[1.3fr_1.2fr_0.8fr_0.7fr_0.9fr] gap-4 px-5 py-4">
       <div className="self-center text-sm text-[var(--ink)]">{profile.email}</div>
-      <input value={fullName} onChange={(event) => setFullName(event.target.value)} className="field !px-4 !py-3 text-sm" />
-      <select value={role} onChange={(event) => setRole(event.target.value as Role)} className="field !px-4 !py-3 text-sm">
+      <input value={fullName} onChange={(event) => setFullName(event.target.value)} className="field field-compact text-sm" />
+      <select value={role} onChange={(event) => setRole(event.target.value as Role)} className="field field-compact text-sm">
         {ROLE_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -219,7 +219,7 @@ function EditableUserRow({
         <button
           type="button"
           onClick={() => onSave({ full_name: fullName, role, is_active: isActive })}
-          className="rounded-full border border-[var(--line)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink)] transition hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)]"
+          className="ghost-button"
         >
           Guardar
         </button>

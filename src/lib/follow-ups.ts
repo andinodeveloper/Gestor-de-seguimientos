@@ -5,7 +5,10 @@ import { normalizeString } from "@/lib/domain";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type {
   ActivityTracking,
+  DashboardHighlight,
+  DashboardSummary,
   DocumentTracking,
+  OperationalSnapshot,
   Profile,
   ProjectTracking,
   Role,
@@ -15,6 +18,14 @@ import { downloadBlob, downloadFileName } from "@/lib/utils";
 export type ListFilters = {
   query?: string;
   archived?: "active" | "archived" | "all";
+  ownerId?: string;
+};
+
+export type ProfileFilters = {
+  query?: string;
+  roles?: Role[];
+  activeOnly?: boolean;
+  ids?: string[];
 };
 
 function getSupabaseErrorMessage(message: string) {
@@ -44,6 +55,10 @@ export async function listDocuments(filters: ListFilters = {}) {
     query = query.eq("status", "archived");
   } else if (filters.archived !== "all") {
     query = query.eq("status", "active");
+  }
+
+  if (filters.ownerId) {
+    query = query.eq("owner_id", filters.ownerId);
   }
 
   const search = normalizeString(filters.query);
@@ -141,6 +156,10 @@ export async function listActivities(filters: ListFilters = {}) {
     query = query.eq("status", "active");
   }
 
+  if (filters.ownerId) {
+    query = query.eq("owner_id", filters.ownerId);
+  }
+
   const search = normalizeString(filters.query);
   if (search) {
     query = query.or(`title.ilike.%${search}%,organizational_unit.ilike.%${search}%`);
@@ -216,6 +235,10 @@ export async function listProjects(filters: ListFilters = {}) {
     query = query.eq("status", "active");
   }
 
+  if (filters.ownerId) {
+    query = query.eq("owner_id", filters.ownerId);
+  }
+
   const search = normalizeString(filters.query);
   if (search) {
     query = query.or(`title.ilike.%${search}%,organizational_unit.ilike.%${search}%`);
@@ -257,7 +280,7 @@ export async function createProject(input: {
     .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   await recordAuditEvent({ actorId: input.ownerId, entityType: "project", entityId: data.id, action: "created" });
   return { ...data, tasks: [] } as ProjectTracking;
 }
@@ -332,14 +355,32 @@ export async function downloadRecordZip(record: { title: string }, type: string)
 
 // -- PROFILES & UTILS --
 
-export async function listProfiles() {
+export async function listProfiles(filters: ProfileFilters = {}) {
   const supabase = createSupabaseBrowserClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
+  let query = supabase.from("profiles").select("*").order("created_at", { ascending: false });
 
-  if (error) throw new Error(error.message);
+  if (filters.activeOnly) {
+    query = query.eq("is_active", true);
+  }
+
+  if (filters.ids && filters.ids.length > 0) {
+    query = query.in("id", filters.ids);
+  }
+
+  if (filters.roles && filters.roles.length === 1) {
+    query = query.eq("role", filters.roles[0]);
+  } else if (filters.roles && filters.roles.length > 1) {
+    query = query.in("role", filters.roles);
+  }
+
+  const search = normalizeString(filters.query);
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(getSupabaseErrorMessage(error.message));
   return (data ?? []) as Profile[];
 }
 
@@ -410,4 +451,156 @@ export async function recordAuditEvent(input: {
     payload_json: input.payload ?? null,
   });
   if (error) throw new Error(error.message);
+}
+
+export function getProjectProgress(project: ProjectTracking) {
+  const total = project.tasks.length;
+  const done = project.tasks.filter((task) => task.column_key === "done").length;
+  const progress = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  return {
+    done,
+    total,
+    progress,
+  };
+}
+
+export async function getOperationalSnapshot(filters: Pick<ListFilters, "ownerId"> = {}) {
+  const [documents, activities, projects] = await Promise.all([
+    listDocuments({ archived: "all", ownerId: filters.ownerId }),
+    listActivities({ archived: "all", ownerId: filters.ownerId }),
+    listProjects({ archived: "all", ownerId: filters.ownerId }),
+  ]);
+
+  return {
+    documents,
+    activities,
+    projects,
+  } satisfies OperationalSnapshot;
+}
+
+export function buildDashboardSummary(snapshot: OperationalSnapshot) {
+  const recentThreshold = Date.now() - 1000 * 60 * 60 * 24 * 7;
+  const allRecords = [...snapshot.documents, ...snapshot.activities, ...snapshot.projects];
+
+  const documentsActive = snapshot.documents.filter((item) => item.status === "active").length;
+  const activitiesActive = snapshot.activities.filter((item) => item.status === "active").length;
+  const projectsActive = snapshot.projects.filter((item) => item.status === "active").length;
+  const archived = allRecords.filter((item) => item.status === "archived").length;
+  const recent = allRecords.filter((item) => new Date(item.updated_at).getTime() >= recentThreshold).length;
+
+  const metrics = [
+    { id: "documents", label: "Documentos activos", value: documentsActive, note: "Control documental vigente" },
+    { id: "activities", label: "Actividades activas", value: activitiesActive, note: "Operacion en seguimiento" },
+    { id: "projects", label: "Proyectos activos", value: projectsActive, note: "Kanban con movimiento" },
+    { id: "archived", label: "Archivados", value: archived, note: "Registros cerrados o pausados" },
+    { id: "recent", label: "Actualizados esta semana", value: recent, note: "Movimiento reciente del sistema" },
+  ];
+
+  const documentHighlights = [...snapshot.documents]
+    .sort((a, b) => getDocumentHighlightScore(b, recentThreshold) - getDocumentHighlightScore(a, recentThreshold))
+    .slice(0, 2)
+    .map((document) => ({
+      id: document.id,
+      kind: "document" as const,
+      title: document.title,
+      owner_id: document.owner_id,
+      organizational_unit: document.organizational_unit,
+      status: document.status_label,
+      progress: document.progress_percent,
+      updated_at: document.updated_at,
+      href: `/seguimientos/detalle?type=document&id=${document.id}`,
+    }));
+
+  const activityHighlights = [...snapshot.activities]
+    .sort((a, b) => getActivityHighlightScore(b, recentThreshold) - getActivityHighlightScore(a, recentThreshold))
+    .slice(0, 2)
+    .map((activity) => ({
+      id: activity.id,
+      kind: "activity" as const,
+      title: activity.title,
+      owner_id: activity.owner_id,
+      organizational_unit: activity.organizational_unit,
+      status: activity.activity_status,
+      progress: getActivityProgress(activity.activity_status),
+      updated_at: activity.updated_at,
+      href: `/seguimientos/detalle?type=activity&id=${activity.id}`,
+    }));
+
+  const projectHighlights = [...snapshot.projects]
+    .sort((a, b) => getProjectHighlightScore(b, recentThreshold) - getProjectHighlightScore(a, recentThreshold))
+    .slice(0, 2)
+    .map((project) => {
+      const { done, total, progress } = getProjectProgress(project);
+      return {
+        id: project.id,
+        kind: "project" as const,
+        title: project.title,
+        owner_id: project.owner_id,
+        organizational_unit: project.organizational_unit,
+        status: total === 0 ? "Sin tareas" : `${done}/${total} tareas cerradas`,
+        progress,
+        updated_at: project.updated_at,
+        href: `/seguimientos/detalle?type=project&id=${project.id}`,
+      };
+    });
+
+  const highlights = [...documentHighlights, ...activityHighlights, ...projectHighlights]
+    .sort((a, b) => b.progress - a.progress || Date.parse(b.updated_at) - Date.parse(a.updated_at))
+    .slice(0, 6) satisfies DashboardHighlight[];
+
+  const outcomes = [
+    {
+      id: "documents-high-progress",
+      label: "Documentos con avance alto",
+      value: snapshot.documents.filter((item) => item.progress_percent >= 85).length,
+      note: "Registros documentales en fase avanzada o de cierre",
+    },
+    {
+      id: "activities-completed",
+      label: "Actividades completadas",
+      value: snapshot.activities.filter((item) => item.activity_status === "Completado").length,
+      note: "Actividades operativas finalizadas",
+    },
+    {
+      id: "projects-complete",
+      label: "Proyectos con todas las tareas cerradas",
+      value: snapshot.projects.filter((item) => {
+        const { done, total } = getProjectProgress(item);
+        return total > 0 && done === total;
+      }).length,
+      note: "Tableros sin pendientes abiertos",
+    },
+  ];
+
+  return {
+    metrics,
+    highlights,
+    outcomes,
+    totals: {
+      documents: snapshot.documents.length,
+      activities: snapshot.activities.length,
+      projects: snapshot.projects.length,
+      archived,
+      recent,
+    },
+  } satisfies DashboardSummary;
+}
+
+function getDocumentHighlightScore(document: DocumentTracking, recentThreshold: number) {
+  return document.progress_percent + (new Date(document.updated_at).getTime() >= recentThreshold ? 12 : 0);
+}
+
+function getActivityHighlightScore(activity: ActivityTracking, recentThreshold: number) {
+  return getActivityProgress(activity.activity_status) + (new Date(activity.updated_at).getTime() >= recentThreshold ? 12 : 0);
+}
+
+function getProjectHighlightScore(project: ProjectTracking, recentThreshold: number) {
+  return getProjectProgress(project).progress + (new Date(project.updated_at).getTime() >= recentThreshold ? 12 : 0);
+}
+
+function getActivityProgress(status: ActivityTracking["activity_status"]) {
+  if (status === "Completado") return 100;
+  if (status === "En Proceso") return 58;
+  return 18;
 }

@@ -15,7 +15,7 @@ export default function HomePage() {
       return;
     }
 
-    router.replace(session && profile && !blocked ? "/seguimientos" : "/login");
+    router.replace(session && profile && !blocked ? "/dashboard" : "/login");
   }, [blocked, isConfigured, loading, profile, router, session]);
 
   if (!isConfigured) {

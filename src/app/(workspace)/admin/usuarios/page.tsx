@@ -22,7 +22,7 @@ export default function UsersAdminPage() {
     }
 
     if (!isAdminRole(profile.role)) {
-      router.replace("/seguimientos");
+      router.replace("/dashboard");
       return;
     }
 

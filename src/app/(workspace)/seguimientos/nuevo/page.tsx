@@ -1,20 +1,32 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "@/components/auth-provider";
 import { createDocument, createActivity, createProject } from "@/lib/follow-ups";
 import Link from "next/link";
 
 export default function NewRecordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile } = useAuthContext();
-  
-  const [type, setType] = useState<"document" | "activity" | "project">("document");
+
+  const presetType = useMemo(() => {
+    const raw = searchParams.get("type");
+    return raw === "document" || raw === "activity" || raw === "project" ? raw : null;
+  }, [searchParams]);
+
+  const [type, setType] = useState<"document" | "activity" | "project">(presetType ?? "document");
   const [title, setTitle] = useState("");
   const [organizationalUnit, setOrganizationalUnit] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (presetType) {
+      setType(presetType);
+    }
+  }, [presetType]);
 
   if (profile?.role === "viewer") {
     return (
@@ -30,21 +42,23 @@ export default function NewRecordPage() {
     
     setIsSubmitting(true);
     setError(null);
+
+    const selectedType = presetType ?? type;
     
     try {
       let createdId = "";
-      if (type === "document") {
+      if (selectedType === "document") {
         const doc = await createDocument({ title, organizationalUnit, ownerId: profile.id });
         createdId = doc.id;
-      } else if (type === "activity") {
+      } else if (selectedType === "activity") {
         const act = await createActivity({ title, organizationalUnit, ownerId: profile.id });
         createdId = act.id;
-      } else if (type === "project") {
+      } else if (selectedType === "project") {
         const proj = await createProject({ title, organizationalUnit, ownerId: profile.id });
         createdId = proj.id;
       }
       
-      router.push(`/seguimientos/detalle?type=${type}&id=${createdId}`);
+      router.push(`/seguimientos/detalle?type=${selectedType}&id=${createdId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear registro.");
       setIsSubmitting(false);
@@ -60,7 +74,15 @@ export default function NewRecordPage() {
       </div>
       <div className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Creacion</p>
-        <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-[var(--ink)]">Nuevo Registro</h2>
+        <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-[var(--ink)]">
+          {presetType === "document"
+            ? "Nuevo Documento"
+            : presetType === "activity"
+              ? "Nueva Actividad"
+              : presetType === "project"
+                ? "Nuevo Proyecto"
+                : "Nuevo Registro"}
+        </h2>
         <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
           Selecciona el tipo de registro y proporciona la informacion inicial. El responsable directo sera tu usuario.
         </p>
@@ -68,19 +90,37 @@ export default function NewRecordPage() {
         {error && <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</div>}
         
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="space-y-2">
-            <label className="label">Tipo de Registro</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as "document" | "activity" | "project")}
-              className="field"
-              disabled={isSubmitting}
-            >
-              <option value="document">Documento</option>
-              <option value="activity">Actividad Operativa</option>
-              <option value="project">Proyecto / Kanban</option>
-            </select>
-          </div>
+          {!presetType ? (
+            <div className="space-y-2">
+              <label className="label">Tipo de Registro</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as "document" | "activity" | "project")}
+                className="field"
+                disabled={isSubmitting}
+              >
+                <option value="document">Documento</option>
+                <option value="activity">Actividad Operativa</option>
+                <option value="project">Proyecto / Kanban</option>
+              </select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="label">Tipo de Registro</label>
+              <div className="field flex items-center justify-between">
+                <span>
+                  {presetType === "document"
+                    ? "Documento"
+                    : presetType === "activity"
+                      ? "Actividad Operativa"
+                      : "Proyecto / Kanban"}
+                </span>
+                <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+                  Fijado
+                </span>
+              </div>
+            </div>
+          )}
           
           <div className="space-y-2">
             <label className="label">Titulo descriptivo</label>
@@ -113,7 +153,15 @@ export default function NewRecordPage() {
               disabled={isSubmitting || !title.trim()}
               className="action-button disabled:opacity-50"
             >
-              {isSubmitting ? "Creando..." : "Crear registro"}
+              {isSubmitting
+                ? "Creando..."
+                : presetType === "document"
+                  ? "Crear documento"
+                  : presetType === "activity"
+                    ? "Crear actividad"
+                    : presetType === "project"
+                      ? "Crear proyecto"
+                      : "Crear registro"}
             </button>
           </div>
         </form>

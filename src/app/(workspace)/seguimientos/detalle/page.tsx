@@ -87,7 +87,10 @@ function DetalleContent() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/seguimientos?tab=${type}s`} className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--muted)] hover:text-[var(--accent)]">
+        <Link
+          href={type === "document" ? "/seguimientos#documents" : type === "activity" ? "/seguimientos#activities" : "/seguimientos#projects"}
+          className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--muted)] hover:text-[var(--accent)]"
+        >
           &larr; Volver al listado
         </Link>
       </div>

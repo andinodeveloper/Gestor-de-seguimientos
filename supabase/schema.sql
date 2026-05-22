@@ -323,7 +323,7 @@ create policy "profiles_select_self_or_admin"
 on public.profiles
 for select
 to authenticated
-using (public.app_is_active() and (id = auth.uid() or public.app_role() = 'admin'));
+using (public.app_is_active() and is_active = true);
 
 drop policy if exists "profiles_update_admin_only" on public.profiles;
 create policy "profiles_update_admin_only"

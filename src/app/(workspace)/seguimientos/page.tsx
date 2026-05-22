@@ -1,252 +1,355 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useAuthContext } from "@/components/auth-provider";
-import {
-  listDocuments,
-  listActivities,
-  listProjects,
-  type ListFilters,
-} from "@/lib/follow-ups";
-import type { ActivityTracking, DocumentTracking, ProjectTracking } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { getOperationalSnapshot, getProjectProgress } from "@/lib/follow-ups";
+import type {
+  ActivityTracking,
+  DocumentTracking,
+  OperationalSnapshot,
+  ProjectTracking,
+} from "@/lib/types";
+import { cn, formatDate } from "@/lib/utils";
 
-type TabKey = "documents" | "activities" | "projects";
+type ArchiveFilter = "active" | "archived" | "all";
 
-function DashboardContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export default function RecordsHubPage() {
   const { profile } = useAuthContext();
-  
-  const currentTab = (searchParams.get("tab") as TabKey) || "documents";
-  const query = searchParams.get("q") ?? "";
-  const archivedValue =
-    searchParams.get("archived") === "archived" || searchParams.get("archived") === "all"
-      ? (searchParams.get("archived") as "archived" | "all")
-      : "active";
-
-  const [documents, setDocuments] = useState<DocumentTracking[]>([]);
-  const [activities, setActivities] = useState<ActivityTracking[]>([]);
-  const [projects, setProjects] = useState<ProjectTracking[]>([]);
+  const [snapshot, setSnapshot] = useState<OperationalSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const filters: ListFilters = {
-    query,
-    archived: archivedValue,
-  };
 
   useEffect(() => {
     let ignore = false;
     setIsLoading(true);
     setError(null);
 
-    const fetchCurrentTab = async () => {
-      try {
-        if (currentTab === "documents") {
-          const res = await listDocuments(filters);
-          if (!ignore) setDocuments(res);
-        } else if (currentTab === "activities") {
-          const res = await listActivities(filters);
-          if (!ignore) setActivities(res);
-        } else if (currentTab === "projects") {
-          const res = await listProjects(filters);
-          if (!ignore) setProjects(res);
-        }
-        if (!ignore) setIsLoading(false);
-      } catch (err) {
+    void getOperationalSnapshot()
+      .then((data) => {
         if (!ignore) {
-          setError(err instanceof Error ? err.message : "Error al cargar la lista.");
+          setSnapshot(data);
           setIsLoading(false);
         }
-      }
-    };
-
-    void fetchCurrentTab();
+      })
+      .catch((loadError) => {
+        if (!ignore) {
+          setSnapshot(null);
+          setError(loadError instanceof Error ? loadError.message : "No se pudo cargar el hub de registros.");
+          setIsLoading(false);
+        }
+      });
 
     return () => {
       ignore = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTab, query, archivedValue]);
+  }, []);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const params = new URLSearchParams();
+  const activeTotals = useMemo(() => {
+    if (!snapshot) {
+      return { documents: 0, activities: 0, projects: 0 };
+    }
 
-    params.set("tab", currentTab);
-    
-    const q = String(formData.get("q") ?? "").trim();
-    const archived = String(formData.get("archived") ?? "active").trim();
+    return {
+      documents: snapshot.documents.filter((item) => item.status === "active").length,
+      activities: snapshot.activities.filter((item) => item.status === "active").length,
+      projects: snapshot.projects.filter((item) => item.status === "active").length,
+    };
+  }, [snapshot]);
 
-    if (q) params.set("q", q);
-    if (archived && archived !== "active") params.set("archived", archived);
+  const canCreate = profile?.role !== "viewer";
 
-    router.replace(`/seguimientos?${params.toString()}`);
+  if (error) {
+    return (
+      <div className="page-stack">
+        <div className="alert-box alert-box-error">{error}</div>
+      </div>
+    );
   }
 
-  function handleTabChange(tab: TabKey) {
-    const params = new URLSearchParams();
-    params.set("tab", tab);
-    if (query) params.set("q", query);
-    if (archivedValue !== "active") params.set("archived", archivedValue);
-    router.push(`/seguimientos?${params.toString()}`);
+  if (isLoading || !snapshot) {
+    return (
+      <div className="page-stack">
+        <div className="section-panel loading-panel">
+          <p className="section-eyebrow">Cargando registros</p>
+          <p className="section-note">Preparando documentos, actividades y proyectos independientes.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[2rem] border border-[var(--line)] bg-white p-8 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Listado maestro</p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-[var(--ink)]">
-            Registros Operativos
-          </h2>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
-            Gestiona documentos, actividades y proyectos de forma independiente.
-          </p>
-        </div>
-        <div className="rounded-[2rem] border border-[var(--line)] bg-[var(--shell)] p-8 text-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Acciones</p>
-          <h3 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">
-            {profile?.role === "viewer" ? "Consulta disponible" : profile?.role === "admin" ? "Control global" : "Edicion por responsable"}
-          </h3>
-          <p className="mt-4 text-sm leading-7 text-white/[0.68]">
-            {profile?.role === "viewer"
-              ? "Puedes abrir cualquier registro y consultar su contenido."
-              : profile?.role === "admin"
-                ? "Puedes crear registros y editar cualquier documento, actividad o proyecto del sistema."
-                : "Puedes crear registros y editar solo aquellos de los que eres responsable directo."}
-          </p>
-          {profile?.role !== "viewer" ? (
-            <Link
-              href="/seguimientos/nuevo"
-              className="mt-8 inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#102117] transition hover:bg-white/90"
-            >
-              Nuevo registro
-            </Link>
-          ) : null}
+    <div className="page-stack">
+      <section className="hero-grid">
+        <div className="hero-panel">
+          <div className="hero-copy">
+            <p className="hero-eyebrow">Registros operativos</p>
+            <h1 className="hero-title">Un solo workspace para documentos, actividades y kanban</h1>
+            <p className="hero-body">
+              Cada modulo conserva su propio filtro, su propia accion de creacion y su propio ritmo de trabajo.
+            </p>
+          </div>
+          <div className="hero-rails">
+            <div className="stat-ribbon">
+              <StatPill label="Documentos activos" value={activeTotals.documents} />
+              <StatPill label="Actividades activas" value={activeTotals.activities} />
+              <StatPill label="Proyectos activos" value={activeTotals.projects} />
+            </div>
+            <div className="meta-grid">
+              <div className="meta-tile">
+                <strong>{snapshot.documents.length + snapshot.activities.length + snapshot.projects.length}</strong>
+                <span>Registros visibles en este workspace</span>
+              </div>
+              <div className="meta-tile">
+                <strong>{profile?.role === "viewer" ? "Consulta" : "Operacion"}</strong>
+                <span>{profile?.role === "viewer" ? "Sin acciones de alta" : "Creacion desde cada modulo"}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-[var(--line)] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-        <div className="mb-6 flex space-x-2 border-b border-[var(--line)] pb-4">
-          <button
-            onClick={() => handleTabChange("documents")}
-            className={cn("px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] transition-colors rounded-full", currentTab === "documents" ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:bg-[var(--surface-2)]")}
-          >
-            Documentos
-          </button>
-          <button
-            onClick={() => handleTabChange("activities")}
-            className={cn("px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] transition-colors rounded-full", currentTab === "activities" ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:bg-[var(--surface-2)]")}
-          >
-            Actividades
-          </button>
-          <button
-            onClick={() => handleTabChange("projects")}
-            className={cn("px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] transition-colors rounded-full", currentTab === "projects" ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:bg-[var(--surface-2)]")}
-          >
-            Proyectos
-          </button>
-        </div>
+      <div className="module-stack">
+        <RecordsModule
+          id="documents"
+          title="Documentos"
+          note="Estado documental, avance de fases y observaciones de control."
+          createLabel="Crear documento"
+          createHref="/seguimientos/nuevo?type=document"
+          canCreate={canCreate}
+          total={snapshot.documents.length}
+          items={snapshot.documents}
+          getSearchText={(item) => [item.title, item.organizational_unit, item.status_label].join(" ")}
+          getHref={(item) => `/seguimientos/detalle?type=document&id=${item.id}`}
+          renderStatus={(item) => (
+            <div className="record-status-block">
+              <strong>{item.status_label}</strong>
+              <span>{item.progress_percent}% de avance</span>
+            </div>
+          )}
+          renderSummary={(items) => {
+            const active = items.filter((item) => item.status === "active").length;
+            const highProgress = items.filter((item) => item.progress_percent >= 85).length;
+            return (
+              <>
+                <SummaryMini label="Activos" value={active} />
+                <SummaryMini label="Avance alto" value={highProgress} />
+              </>
+            );
+          }}
+        />
 
-        <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-[1.6fr_0.9fr_auto]">
-          <input
-            className="field"
-            name="q"
-            defaultValue={filters.query ?? ""}
-            placeholder="Buscar por titulo o unidad"
-          />
-          <select className="field" name="archived" defaultValue={filters.archived ?? "active"}>
-            <option value="active">Solo activos</option>
-            <option value="archived">Solo archivados</option>
-            <option value="all">Todos</option>
-          </select>
-          <button
-            type="submit"
-            className="rounded-full bg-[var(--accent)] px-5 py-4 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-[var(--accent-strong)]"
-          >
-            Filtrar
-          </button>
-        </form>
-      </section>
+        <RecordsModule
+          id="activities"
+          title="Actividades"
+          note="Seguimiento operativo con frecuencia, prioridad y estado de ejecucion."
+          createLabel="Crear actividad"
+          createHref="/seguimientos/nuevo?type=activity"
+          canCreate={canCreate}
+          total={snapshot.activities.length}
+          items={snapshot.activities}
+          getSearchText={(item) => [item.title, item.organizational_unit, item.activity_status, item.priority].join(" ")}
+          getHref={(item) => `/seguimientos/detalle?type=activity&id=${item.id}`}
+          renderStatus={(item) => (
+            <div className="record-status-block">
+              <strong>{item.activity_status}</strong>
+              <span>
+                {item.frequency} · {item.priority}
+              </span>
+            </div>
+          )}
+          renderSummary={(items) => {
+            const completed = items.filter((item) => item.activity_status === "Completado").length;
+            const inProcess = items.filter((item) => item.activity_status === "En Proceso").length;
+            return (
+              <>
+                <SummaryMini label="En proceso" value={inProcess} />
+                <SummaryMini label="Completadas" value={completed} />
+              </>
+            );
+          }}
+        />
 
-      {error ? (
-        <div className="rounded-[2rem] border border-rose-200 bg-rose-50 px-6 py-5 text-sm text-rose-900">
-          {error}
-        </div>
-      ) : null}
-
-      {isLoading ? (
-        <div className="rounded-[2rem] border border-[var(--line)] bg-white px-8 py-16 text-center shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Cargando</p>
-          <p className="mt-4 text-sm text-[var(--muted)]">Consultando registros...</p>
-        </div>
-      ) : (
-        <div className="rounded-[2rem] border border-[var(--line)] bg-white overflow-hidden shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[var(--surface)] text-[11px] uppercase tracking-[0.24em] text-[var(--muted)]">
-              <tr>
-                <th className="px-6 py-4 font-semibold">Titulo</th>
-                <th className="px-6 py-4 font-semibold">Unidad</th>
-                <th className="px-6 py-4 font-semibold">Estado</th>
-                <th className="px-6 py-4 font-semibold text-right">Accion</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--line)]">
-              {currentTab === "documents" && documents.map((doc) => (
-                <tr key={doc.id} className="transition-colors hover:bg-[var(--surface-2)]">
-                  <td className="px-6 py-4 font-medium text-[var(--ink)]">{doc.title}</td>
-                  <td className="px-6 py-4 text-[var(--muted)]">{doc.organizational_unit || "-"}</td>
-                  <td className="px-6 py-4 text-[var(--muted)]">{doc.status_label} ({doc.progress_percent}%)</td>
-                  <td className="px-6 py-4 text-right">
-                    <Link href={`/seguimientos/detalle?type=document&id=${doc.id}`} className="font-semibold uppercase tracking-[0.1em] text-[var(--accent)] hover:underline">Abrir</Link>
-                  </td>
-                </tr>
-              ))}
-              {currentTab === "activities" && activities.map((act) => (
-                <tr key={act.id} className="transition-colors hover:bg-[var(--surface-2)]">
-                  <td className="px-6 py-4 font-medium text-[var(--ink)]">{act.title}</td>
-                  <td className="px-6 py-4 text-[var(--muted)]">{act.organizational_unit || "-"}</td>
-                  <td className="px-6 py-4 text-[var(--muted)]">{act.activity_status}</td>
-                  <td className="px-6 py-4 text-right">
-                    <Link href={`/seguimientos/detalle?type=activity&id=${act.id}`} className="font-semibold uppercase tracking-[0.1em] text-[var(--accent)] hover:underline">Abrir</Link>
-                  </td>
-                </tr>
-              ))}
-              {currentTab === "projects" && projects.map((proj) => (
-                <tr key={proj.id} className="transition-colors hover:bg-[var(--surface-2)]">
-                  <td className="px-6 py-4 font-medium text-[var(--ink)]">{proj.title}</td>
-                  <td className="px-6 py-4 text-[var(--muted)]">{proj.organizational_unit || "-"}</td>
-                  <td className="px-6 py-4 text-[var(--muted)]">{proj.tasks.length} Tareas</td>
-                  <td className="px-6 py-4 text-right">
-                    <Link href={`/seguimientos/detalle?type=project&id=${proj.id}`} className="font-semibold uppercase tracking-[0.1em] text-[var(--accent)] hover:underline">Abrir</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        <RecordsModule
+          id="projects"
+          title="Proyectos / Kanban"
+          note="Tableros con tareas, progreso derivado y cierre por columna."
+          createLabel="Crear proyecto"
+          createHref="/seguimientos/nuevo?type=project"
+          canCreate={canCreate}
+          total={snapshot.projects.length}
+          items={snapshot.projects}
+          getSearchText={(item) => [item.title, item.organizational_unit].join(" ")}
+          getHref={(item) => `/seguimientos/detalle?type=project&id=${item.id}`}
+          renderStatus={(item) => {
+            const { done, total, progress } = getProjectProgress(item);
+            return (
+              <div className="record-status-block">
+                <strong>{progress}% de avance</strong>
+                <span>{total === 0 ? "Sin tareas" : `${done}/${total} tareas finalizadas`}</span>
+              </div>
+            );
+          }}
+          renderSummary={(items) => {
+            const totalTasks = items.reduce((acc, item) => acc + item.tasks.length, 0);
+            const completedBoards = items.filter((item) => {
+              const { done, total } = getProjectProgress(item);
+              return total > 0 && done === total;
+            }).length;
+            return (
+              <>
+                <SummaryMini label="Tareas totales" value={totalTasks} />
+                <SummaryMini label="Tableros cerrados" value={completedBoards} />
+              </>
+            );
+          }}
+        />
+      </div>
     </div>
   );
 }
 
-export default function DashboardPage() {
+function RecordsModule<T extends DocumentTracking | ActivityTracking | ProjectTracking>({
+  id,
+  title,
+  note,
+  items,
+  total,
+  canCreate,
+  createHref,
+  createLabel,
+  getSearchText,
+  getHref,
+  renderStatus,
+  renderSummary,
+}: {
+  id: string;
+  title: string;
+  note: string;
+  items: T[];
+  total: number;
+  canCreate: boolean | undefined;
+  createHref: string;
+  createLabel: string;
+  getSearchText: (item: T) => string;
+  getHref: (item: T) => string;
+  renderStatus: (item: T) => React.ReactNode;
+  renderSummary: (items: T[]) => React.ReactNode;
+}) {
+  const [query, setQuery] = useState("");
+  const [archived, setArchived] = useState<ArchiveFilter>("active");
+  const [showAll, setShowAll] = useState(false);
+
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return items.filter((item) => {
+      const matchesArchive =
+        archived === "all" ? true : archived === "archived" ? item.status === "archived" : item.status === "active";
+
+      const matchesQuery = normalized ? getSearchText(item).toLowerCase().includes(normalized) : true;
+
+      return matchesArchive && matchesQuery;
+    });
+  }, [archived, getSearchText, items, query]);
+
+  const visibleItems = showAll ? filtered : filtered.slice(0, 5);
+
+  useEffect(() => {
+    setShowAll(false);
+  }, [query, archived]);
+
   return (
-    <Suspense
-      fallback={
-        <div className="rounded-[2rem] border border-[var(--line)] bg-white px-8 py-16 text-center shadow-[0_18px_40px_rgba(15,23,42,0.05)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Cargando</p>
-          <p className="mt-4 text-sm text-[var(--muted)]">Preparando dashboard...</p>
+    <section id={id} className="module-panel">
+      <div className="module-head">
+        <div className="module-headline">
+          <div>
+            <p className="section-eyebrow">{title}</p>
+            <h2 className="section-title">{title}</h2>
+          </div>
+          <p className="section-note">{note}</p>
         </div>
-      }
-    >
-      <DashboardContent />
-    </Suspense>
+        <div className="module-actions">
+          <div className="compact-grid">{renderSummary(items)}</div>
+          {canCreate ? (
+            <Link href={createHref} className="mini-button">
+              {createLabel}
+            </Link>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="module-toolbar">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="field field-compact"
+          placeholder={`Buscar en ${title.toLowerCase()}`}
+        />
+        <select value={archived} onChange={(event) => setArchived(event.target.value as ArchiveFilter)} className="field field-compact">
+          <option value="active">Solo activos</option>
+          <option value="archived">Solo archivados</option>
+          <option value="all">Todos</option>
+        </select>
+        <div className="module-meta">
+          <span>{filtered.length} visibles</span>
+          <span>{total} totales</span>
+        </div>
+      </div>
+
+      <div className="record-list">
+        {visibleItems.length === 0 ? (
+          <div className="empty-strip">No hay registros que coincidan con este filtro.</div>
+        ) : (
+          visibleItems.map((item) => (
+            <article key={item.id} className="record-row">
+              <div className="record-main">
+                <div>
+                  <p className="record-title">{item.title}</p>
+                  <p className="record-meta">
+                    {item.organizational_unit || "Sin unidad"} · Actualizado {formatDate(item.updated_at)}
+                  </p>
+                </div>
+                {renderStatus(item)}
+              </div>
+              <div className="record-actions">
+                <span className={cn("record-state-pill", item.status === "archived" ? "record-state-pill-archived" : "")}>
+                  {item.status === "archived" ? "Archivado" : "Activo"}
+                </span>
+                <Link href={getHref(item)} className="text-link">
+                  Abrir
+                </Link>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+
+      {filtered.length > 5 ? (
+        <div className="module-footer">
+          <button type="button" className="ghost-button" onClick={() => setShowAll((current) => !current)}>
+            {showAll ? "Mostrar menos" : "Ver mas"}
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SummaryMini({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="summary-mini">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function StatPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="stat-pill">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
